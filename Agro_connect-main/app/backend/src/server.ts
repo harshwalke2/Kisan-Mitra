@@ -1,0 +1,160 @@
+import express from 'express';
+import http from 'http';
+import cors from 'cors';
+import helmet from 'helmet';
+import compression from 'compression';
+import rateLimit from 'express-rate-limit';
+import dotenv from 'dotenv';
+import { Server } from 'socket.io';
+import authRoutes from '../api/authRoutes';
+import bookingRoutes from '../api/bookingRoutes';
+import cropRecommendationRoutes from '../api/cropRecommendationRoutes';
+import followRoutes from '../api/followRoutes';
+import listingRoutes from '../api/listingRoutes';
+import messageRoutes from '../api/messageRoutes';
+import profileRoutes from '../api/profileRoutes';
+import reviewRoutes from '../api/reviewRoutes';
+import { connectDB } from '../config/db';
+import { initChatSocket } from '../socket/chatSocket';
+
+// Load environment variables
+dotenv.config();
+
+const app = express();
+const server = http.createServer(app);
+
+const allowedOrigins = (process.env.FRONTEND_URLS || process.env.FRONTEND_URL || 'http://localhost:5173,http://localhost:5188')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+// Security middleware
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
+  credentials: true
+}));
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: process.env.NODE_ENV === 'development' ? 2000 : 100,
+  message: 'Too many requests from this IP, please try again later.'
+  ,skip: (req) => {
+    // Avoid blocking local development and health checks.
+    const host = req.hostname || '';
+    const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+    const isHealthRoute = req.path === '/health';
+    return process.env.NODE_ENV === 'development' || isLocalHost || isHealthRoute;
+  }
+});
+app.use('/api/', limiter);
+
+// Body parsing middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(compression());
+app.use('/api', authRoutes);
+app.use('/api', cropRecommendationRoutes);
+app.use('/api', followRoutes);
+app.use('/api', messageRoutes);
+app.use('/api', listingRoutes);
+app.use('/api', bookingRoutes);
+app.use('/api', reviewRoutes);
+app.use('/api', profileRoutes);
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+// API documentation endpoint
+app.get('/api', (req, res) => {
+  res.json({
+    name: 'AgroConnect API',
+    version: '1.0.0',
+    endpoints: {
+      health: '/api/health',
+      cropRecommendation: '/api/crop-recommend',
+      register: 'POST /api/auth/register',
+      login: 'POST /api/auth/login',
+      searchUsers: 'GET /api/users/search?q=<query>',
+      sendFollowRequest: 'POST /api/follow-request',
+      getPendingRequests: 'GET /api/follow-requests',
+      acceptFollowRequest: 'POST /api/follow-request/accept',
+      rejectFollowRequest: 'POST /api/follow-request/reject',
+      getMessages: 'GET /api/messages/:userId',
+      sendMessage: 'POST /api/messages',
+      getListings: 'GET /api/listings',
+      createListing: 'POST /api/listings',
+      getMyBookings: 'GET /api/bookings/me',
+      createBooking: 'POST /api/bookings',
+      updateBookingStatus: 'PATCH /api/bookings/:bookingId/status',
+      createReview: 'POST /api/reviews',
+      getUserReviews: 'GET /api/reviews/:userId',
+      getMyProfile: 'GET /api/profile/me',
+      getPublicProfile: 'GET /api/users/:userId/profile'
+    }
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'Route not found'
+  });
+});
+
+// Start server
+const PORT = process.env.PORT || 5000;
+
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
+});
+
+initChatSocket(io);
+
+const bootstrap = async (): Promise<void> => {
+  await connectDB();
+
+  server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`Allowed frontend origins: ${allowedOrigins.join(', ')}`);
+  });
+};
+
+bootstrap().catch((error) => {
+  console.error('Failed to start server:', error);
+  process.exit(1);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled Rejection:', err);
+});

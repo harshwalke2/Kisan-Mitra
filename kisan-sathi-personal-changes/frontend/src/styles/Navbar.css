@@ -1,0 +1,16 @@
+/* Navbar CSS - already defined in Header.css */
+/* Additional responsive styles for navbar */
+
+@media (max-width: 768px) {
+  .nav-container {
+    flex-wrap: wrap;
+  }
+
+  .nav-links {
+    display: none;
+  }
+
+  .nav-links.active {
+    display: flex;
+  }
+}

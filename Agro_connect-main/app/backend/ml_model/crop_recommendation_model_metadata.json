@@ -1,0 +1,55 @@
+{
+  "best_model": "RandomForestClassifier",
+  "accuracy": 0.9931818181818182,
+  "precision": 0.9935064935064934,
+  "recall": 0.9931818181818182,
+  "f1_score": 0.9931775541531639,
+  "features": [
+    "nitrogen",
+    "phosphorus",
+    "potassium",
+    "temperature",
+    "humidity",
+    "ph",
+    "rainfall"
+  ],
+  "classes": [
+    "apple",
+    "banana",
+    "blackgram",
+    "chickpea",
+    "coconut",
+    "coffee",
+    "cotton",
+    "grapes",
+    "jute",
+    "kidneybeans",
+    "lentil",
+    "maize",
+    "mango",
+    "mothbeans",
+    "mungbean",
+    "muskmelon",
+    "orange",
+    "papaya",
+    "pigeonpeas",
+    "pomegranate",
+    "rice",
+    "watermelon"
+  ],
+  "total_crops": 22,
+  "train_rows": 1760,
+  "test_rows": 440,
+  "total_rows": 2200,
+  "model_path": "C:\\Users\\dell\\Desktop\\kisan-dost\\Agro_connect-main\\app\\backend\\ml_model\\crop_recommendation_model.pkl",
+  "models_comparison": {
+    "RandomForestClassifier": {
+      "accuracy": 0.9931818181818182,
+      "f1_score": 0.9931775541531639
+    },
+    "GradientBoostingClassifier": {
+      "accuracy": 0.9863636363636363,
+      "f1_score": 0.986449882475646
+    }
+  }
+}

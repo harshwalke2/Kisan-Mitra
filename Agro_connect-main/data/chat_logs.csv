@@ -1,0 +1,209 @@
+timestamp,sender,intent,user_message,bot_response
+2026-02-21T15:01:09.770367,919172014025,unknown,Hii,"🌾 Welcome to KISAN!
+
+Send:
+1️⃣ recommend
+2️⃣ market <crop> (example: market rice)
+3️⃣ forecast <crop>
+4️⃣ season <rainy|summer|winter|spring>
+5️⃣ help"
+2026-02-21T15:01:23.986549,919172014025,recommend,recommend,"🌾 Please send your location in this format:
+State | District
+
+Example:
+Maharashtra | Pune"
+2026-02-21T15:01:44.826820,919172014025,market,market,Invalid format. Please send: State | District (example: Maharashtra | Pune)
+2026-02-21T15:01:54.376326,919172014025,market,Market,Invalid format. Please send: State | District (example: Maharashtra | Pune)
+2026-02-21T15:02:08.503950,919172014025,unknown,Maharashtra | Pune,"📍 Location: Maharashtra, Pune
+🌾 Recommended Crop: muskmelon
+✅ Confidence: 22.0%
+
+🌦 Estimated Climate: 25.62°C, 71.48% humidity, 3.12 mm rainfall
+🧪 Soil Profile Source Crop: rice
+
+Top Suggestions:
+- muskmelon (22.0%)
+- chickpea (19.67%)
+- grapes (10.5%)"
+2026-02-21T15:02:17.436825,919172014025,unknown,Hi,"🌾 Welcome to KISAN!
+
+Send:
+1️⃣ recommend
+2️⃣ market <crop> (example: market rice)
+3️⃣ forecast <crop>
+4️⃣ season <rainy|summer|winter|spring>
+5️⃣ help"
+2026-02-21T15:02:23.382124,919172014025,market,market,Please provide crop name. Example: market rice
+2026-02-21T15:02:44.658474,919172014025,market,market grapes,No market data found for Grapes.
+2026-02-21T15:02:55.220868,919172014025,market,market chickpea,No market data found for Chickpea.
+2026-02-21T15:03:08.443948,919172014025,market,Market muskmelon,No market data found for Muskmelon.
+2026-02-21T15:03:23.654624,919172014025,forecast,forecast muskmelon,No forecast data found for Muskmelon.
+2026-02-21T15:03:33.168267,919172014025,season,season summer,"📅 Seasonal Recommendation (Summer)
+Top crops:
+- Potato
+- Onion
+- Tomato
+- Wheat
+- Rice
+
+Why: Top commodities in summer based on available market records"
+2026-02-21T15:03:45.414401,919172014025,season,season,Please provide season. Example: season rainy
+2026-02-21T15:03:55.062859,919172014025,season,season rsiny,"Invalid season. Use rainy, summer, winter, or spring."
+2026-02-21T15:04:01.562336,919172014025,unknown,Hii,"🌾 Welcome to KISAN!
+
+Send:
+1️⃣ recommend
+2️⃣ market <crop> (example: market rice)
+3️⃣ forecast <crop>
+4️⃣ season <rainy|summer|winter|spring>
+5️⃣ help"
+2026-02-21T23:13:23.641542,919172014025,unknown,Hii,"नमस्ते / नमस्कार / Hello 👋
+
+Choose your preferred language:"
+2026-02-21T23:13:30.218721,919172014025,unknown,lang_en,"Language set to en
+
+🌾 Welcome to KISAN - Your Crop Companion!
+
+Choose what you need:
+🌾 Recommend - Get crop recommendation
+📊 Market - Check market prices
+📅 Season - See seasonal crops"
+2026-02-21T23:13:36.190286,919172014025,recommend,recommend,"🌾 Please send your location:
+
+State | District
+
+Example:
+Maharashtra | Pune"
+2026-02-21T23:13:57.098753,919172014025,unknown,Maharashtra | Pune,"📍 Location: Maharashtra, Pune
+🌾 Recommended: muskmelon
+✅ Confidence: 22.0%
+
+🌦 Climate: 25.62°C, 71.48% humidity
+🧪 Rainfall: 3.12mm
+
+Top Suggestions:
+- muskmelon (22.0%)
+- chickpea (19.67%)
+- grapes (10.5%)"
+2026-02-21T23:37:12.759063,919172014025,unknown,Hii,"नमस्ते / नमस्कार / Hello 👋
+
+Choose your preferred language:"
+2026-02-21T23:37:18.909915,919172014025,unknown,lang_en,"Language set to en
+
+🌾 Welcome to KISAN - Your Crop Companion!
+
+Choose what you need:
+🌾 Recommend - Get crop recommendation
+📊 Market - Check market prices
+📅 Season - See seasonal crops"
+2026-02-21T23:37:25.380673,919172014025,market,market,"Please provide crop name.
+Example: market rice"
+2026-02-21T23:37:38.548348,919172014025,market,market Wheat,"📊 Wheat Market Summary
+💰 Price: ₹2450.0
+📈 Trend: moderate
+⚠ Risk: Medium
+📅 Best selling window: Monitor next 20-30 days"
+2026-02-21T23:37:59.792142,919172014025,market,market,"Please provide crop name.
+Example: market rice"
+2026-02-21T23:38:15.719259,919172014025,market,market Maize,No market data for Maize.
+2026-02-21T23:38:35.279290,919172014025,market,market,"Please provide crop name.
+Example: market rice"
+2026-02-21T23:38:42.239027,919172014025,market,market Jowar,No market data for Jowar.
+2026-02-21T23:38:49.362993,919172014025,market,market,"Please provide crop name.
+Example: market rice"
+2026-02-21T23:39:01.241283,919172014025,market,market Jowar (Sorghum),No market data for Jowar (Sorghum).
+2026-02-21T23:49:54.203860,919172014025,unknown,Hii,"🌾 Welcome to KISAN!
+
+Choose an option:
+🌾 Recommend
+📊 Market
+📅 Season"
+2026-02-21T23:50:00.504441,919172014025,market,market,"Please provide crop name.
+Example: market rice"
+2026-02-21T23:50:14.998567,919172014025,market,market Red Gram,No market data for Red Gram.
+2026-02-21T23:50:49.037552,919172014025,market,market,"Please provide crop name.
+Example: market rice"
+2026-02-22T00:34:48.216862,919172014025,unknown,Hi,"🌾 Welcome to KISAN!
+
+Choose an option:
+🌾 Recommend
+📊 Market
+📅 Season"
+2026-02-22T00:35:32.249719,919172014025,unknown,Hii,"🌾 Welcome to KISAN!
+
+Choose an option:
+🌾 Recommend
+📊 Market
+📅 Season"
+2026-02-22T00:40:59.312183,919172014025,unknown,Hii,"🌾 Welcome to KISAN!
+
+Choose an option:
+🌾 Recommend
+📊 Market
+📅 Season"
+2026-02-22T00:43:15.908584,919172014025,unknown,Hii,"नमस्ते / नमस्कार / Hello 👋
+
+Choose your preferred language:"
+2026-02-22T00:43:52.470346,919209138097,unknown,Hii,"नमस्ते / नमस्कार / Hello 👋
+
+Choose your preferred language:"
+2026-02-22T00:44:05.024351,919172014025,unknown,Hii,"नमस्ते / नमस्कार / Hello 👋
+
+Choose your preferred language:"
+2026-02-22T00:44:34.269633,919209138097,unknown,Hi,"नमस्ते / नमस्कार / Hello 👋
+
+Choose your preferred language:"
+2026-02-22T00:44:35.267846,919209138097,unknown,Hey,"नमस्ते / नमस्कार / Hello 👋
+
+Choose your preferred language:"
+2026-02-22T00:44:45.916957,919172014025,unknown,lang_en,"Language set to en
+
+🌾 Welcome to KISAN - Your Crop Companion!
+
+Choose what you need:
+🌾 Recommend - Get crop recommendation
+📊 Market - Check market prices
+📅 Season - See seasonal crops"
+2026-02-22T00:44:52.166601,919172014025,market,market,"Please provide crop name.
+Example: market rice"
+2026-02-22T00:45:07.416711,919172014025,market,market Maize,"🌾 Maize - Market Price
+💰 Today's Price: ₹1461.0/quintal
+📈 Trend: →
+🏪 Best Mandi: N/A"
+2026-02-22T00:45:18.145344,919172014025,market,market,"Please provide crop name.
+Example: market rice"
+2026-02-22T00:46:01.159171,919172014025,market,Market wheat,"🌾 Wheat - Market Price
+💰 Today's Price: ₹2200.0/quintal
+📈 Trend: 📈 UP
+🏪 Best Mandi: N/A"
+2026-02-22T00:46:19.107401,919172014025,recommend,recommend,"🌾 Please send your location:
+
+State | District
+
+Example:
+Maharashtra | Pune"
+2026-02-22T00:46:27.395409,919172014025,unknown,main_menu,🏠 Main Menu
+2026-02-22T00:46:53.816845,919172014025,unknown,lang_mr,"भाषा MR सेट केली
+
+🌾 KISAN मध्ये आपले स्वागत आहे!
+
+काय हवेय:
+🌾 शिफारस - पिके शिफारस
+📊 बाजार - बाजार भाव पहा
+📅 ऋतु - ऋतु पिके पहा"
+2026-02-22T00:47:10.750296,919172014025,market,market,"कृपया पिकाचे नाव द्या।
+उदाहरण: बाजार तांदूळ"
+2026-02-22T00:47:34.910977,919172014025,market,बाजार तांदूळ,"🌾 Rice - बाजार भाव
+💰 आजचा भाव: ₹3300.0/क्विंटल
+📈 ट्रेंड: 📉 DOWN
+🏪 सर्वश्रेष्ठ मंडी: N/A"
+2026-02-22T00:47:46.038665,919172014025,season,season,"कृपया ऋतु द्या।
+उदाहरण: ऋतु पावसाळी"
+2026-02-22T00:48:05.418585,919172014025,unknown,ऋतु पावसाळी,मला समजले नाही। 'मदद' टाइप करा।
+2026-02-22T00:48:24.434793,919172014025,recommend,recommend,"🌾 कृपया आपले स्थान पाठवा:
+
+राज्य | जिल्हा
+
+उदाहरण:
+महाराष्ट्र | पुणे"
+2026-02-22T01:01:30.238025,919172014025,unknown,main_menu,🏠 मुख्य मेनू

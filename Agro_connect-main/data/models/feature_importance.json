@@ -1,0 +1,58 @@
+[
+  {
+    "feature": 4,
+    "importance": 0.13519385093469205
+  },
+  {
+    "feature": 2,
+    "importance": 0.12522050075466995
+  },
+  {
+    "feature": 7,
+    "importance": 0.12035024337998655
+  },
+  {
+    "feature": 6,
+    "importance": 0.1120678182231174
+  },
+  {
+    "feature": 1,
+    "importance": 0.10032061363706962
+  },
+  {
+    "feature": 8,
+    "importance": 0.0899216076032139
+  },
+  {
+    "feature": 10,
+    "importance": 0.08423137298232584
+  },
+  {
+    "feature": 0,
+    "importance": 0.06605988716198055
+  },
+  {
+    "feature": 12,
+    "importance": 0.04602090946104348
+  },
+  {
+    "feature": 13,
+    "importance": 0.037037629216462656
+  },
+  {
+    "feature": 3,
+    "importance": 0.03680833013988001
+  },
+  {
+    "feature": 5,
+    "importance": 0.02104122206811067
+  },
+  {
+    "feature": 9,
+    "importance": 0.015066176553596735
+  },
+  {
+    "feature": 11,
+    "importance": 0.010659837883850543
+  }
+]

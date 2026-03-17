@@ -1,0 +1,37 @@
+{
+  "crop_classifier": {
+    "model_type": "RandomForestClassifier",
+    "n_estimators": 100,
+    "max_depth": 15,
+    "test_accuracy": 0.990909090909091,
+    "f1_score": 0.9908434847138313,
+    "cv_mean": 0.9926136363636363,
+    "cv_std": 0.005849789852833542
+  },
+  "yield_predictor": {
+    "model_type": "RandomForestRegressor",
+    "n_estimators": 100,
+    "max_depth": 12,
+    "test_rmse": 3.4069848480243015,
+    "test_mae": 1.6370356562757677,
+    "r2_score": 0.9541303915025593,
+    "cv_mean": 0.94348300717689,
+    "cv_std": 0.017423436152906452
+  },
+  "feature_names": [
+    "n",
+    "p",
+    "k",
+    "temperature",
+    "humidity",
+    "ph",
+    "rainfall",
+    "rainfall_deviation_pct",
+    "npk_score",
+    "temp_favorability",
+    "humidity_favorability",
+    "ph_suitability",
+    "growth_potential",
+    "water_stress"
+  ]
+}
