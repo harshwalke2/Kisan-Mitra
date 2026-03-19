@@ -51,14 +51,24 @@ export type LiveMarketStatistics = {
 
 const DEFAULT_BASE_URL = 'https://api.data.gov.in/resource';
 const CACHE_TTL_MS = 10 * 60 * 1000;
-const DEFAULT_LOCAL_MANDI_CSV = path.resolve(
-  process.cwd(),
-  '..',
-  '..',
-  'data',
-  'mandi',
-  '9ef84268-d588-465a-a308-a864a43d0070.csv'
-);
+const DEFAULT_LOCAL_MANDI_CSVS = [
+  path.resolve(
+    process.cwd(),
+    '..',
+    '..',
+    'data',
+    'mandi',
+    '9ef84268-d588-465a-a308-a864a43d0070.csv'
+  ),
+  path.resolve(
+    process.cwd(),
+    '..',
+    '..',
+    'data',
+    'mandi',
+    'cleaned_Agriculture_price_dataset.csv'
+  ),
+];
 
 let cacheExpiry = 0;
 let cachedInsights: LiveMarketInsight[] = [];
@@ -319,12 +329,38 @@ const loadApiRecords = async (limit: number): Promise<{ records: GovRecord[]; so
   };
 };
 
+const resolveLocalCsvPaths = (): string[] => {
+  const configured = (process.env.DATA_GOV_LOCAL_CSV_PATH || '')
+    .split(';')
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  return configured.length > 0 ? configured : DEFAULT_LOCAL_MANDI_CSVS;
+};
+
 const loadLocalCsvRecords = async (): Promise<{ records: GovRecord[]; source: string }> => {
-  const csvPath = process.env.DATA_GOV_LOCAL_CSV_PATH || DEFAULT_LOCAL_MANDI_CSV;
-  const records = await parseLocalMandiCsv(csvPath);
+  const csvPaths = resolveLocalCsvPaths();
+  const records: GovRecord[] = [];
+  const loadedNames: string[] = [];
+
+  for (const csvPath of csvPaths) {
+    try {
+      await fs.access(csvPath);
+      const chunk = await parseLocalMandiCsv(csvPath);
+      records.push(...chunk);
+      loadedNames.push(path.basename(csvPath));
+    } catch (_error) {
+      // Ignore missing/invalid paths and continue with the remaining datasets.
+    }
+  }
+
+  if (records.length === 0) {
+    throw new Error('No local mandi datasets found for fallback mode.');
+  }
+
   return {
     records,
-    source: `Local mandi dataset (${path.basename(csvPath)})`,
+    source: `Local mandi datasets (${loadedNames.join(', ')})`,
   };
 };
 
@@ -453,8 +489,25 @@ const loadObservations = async (sourceLimit: number): Promise<{ source: string; 
     .map((record) => parseObservation(record))
     .filter((record): record is ParsedObservation => Boolean(record));
 
-  cachedObservations = observations;
-  cachedInsights = buildInsights(observations);
+  const dedupedMap = new Map<string, ParsedObservation>();
+  for (const observation of observations) {
+    const key = [
+      observation.state.toLowerCase(),
+      observation.city.toLowerCase(),
+      observation.market.toLowerCase(),
+      observation.commodity.toLowerCase(),
+      observation.date.toISOString().slice(0, 10),
+    ].join('|');
+
+    if (!dedupedMap.has(key)) {
+      dedupedMap.set(key, observation);
+    }
+  }
+
+  const uniqueObservations = [...dedupedMap.values()];
+
+  cachedObservations = uniqueObservations;
+  cachedInsights = buildInsights(uniqueObservations);
   const sourceTitle = loaded.source;
 
   cachedSource = sourceTitle;
@@ -462,7 +515,7 @@ const loadObservations = async (sourceLimit: number): Promise<{ source: string; 
 
   return {
     source: sourceTitle,
-    observations,
+    observations: uniqueObservations,
   };
 };
 

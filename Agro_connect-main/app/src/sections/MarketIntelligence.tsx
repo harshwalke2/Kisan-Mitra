@@ -319,7 +319,9 @@ export function MarketIntelligence() {
             <div>
               <p className="text-xs text-gray-500 mb-1">City / District</p>
               <Select value={selectedCity} onValueChange={setSelectedCity}>
-                <SelectTrigger><SelectValue placeholder="All cities" /></SelectTrigger>
+                <SelectTrigger disabled={status === 'loading' || statistics.cityOptions.length === 0}>
+                  <SelectValue placeholder="All cities" />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All cities</SelectItem>
                   {statistics.cityOptions.map((city) => (
