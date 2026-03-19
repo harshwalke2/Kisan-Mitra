@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
+import mongoose from 'mongoose';
 import { Server } from 'socket.io';
 import authRoutes from '../api/authRoutes';
 import bookingRoutes from '../api/bookingRoutes';
@@ -96,11 +97,21 @@ app.use('/api', adminRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
+  const dbStateMap: Record<number, string> = {
+    0: 'disconnected',
+    1: 'connected',
+    2: 'connecting',
+    3: 'disconnecting',
+  };
+
+  const dbState = mongoose.connection.readyState;
+
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
+    database: dbStateMap[dbState] || 'unknown',
   });
 });
 
@@ -164,20 +175,27 @@ const io = new Server(server, {
 
 initChatSocket(io);
 
-const bootstrap = async (): Promise<void> => {
-  await connectDB();
+const DB_RETRY_DELAY_MS = 10000;
 
-  server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`Allowed frontend origins: ${allowedOrigins.join(', ')}`);
-  });
+const connectDBWithRetry = async (): Promise<void> => {
+  try {
+    await connectDB();
+    console.log('[db] Connection established');
+  } catch (error) {
+    console.error('[db] Initial connection failed. Retrying in 10s...', error);
+    setTimeout(() => {
+      void connectDBWithRetry();
+    }, DB_RETRY_DELAY_MS);
+  }
 };
 
-bootstrap().catch((error) => {
-  console.error('Failed to start server:', error);
-  process.exit(1);
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Allowed frontend origins: ${allowedOrigins.join(', ')}`);
 });
+
+void connectDBWithRetry();
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
