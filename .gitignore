@@ -87,3 +87,7 @@ out/
 
 # Electron
 out/
+
+# Keep Python/system lib folders ignored, but include frontend src/lib utilities
+!Agro_connect-main/app/src/lib/
+!Agro_connect-main/app/src/lib/**
