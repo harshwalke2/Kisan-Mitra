@@ -45,6 +45,13 @@ export const emitMessageToUser = (receiverId: string, payload: Record<string, un
   ioRef.to(receiverId).emit('receiveMessage', payload);
 };
 
+export const emitNotificationToUser = (receiverId: string, payload: Record<string, unknown>): void => {
+  if (!ioRef) {
+    return;
+  }
+  ioRef.to(receiverId).emit('receiveNotification', payload);
+};
+
 export const initChatSocket = (io: Server): void => {
   ioRef = io;
 

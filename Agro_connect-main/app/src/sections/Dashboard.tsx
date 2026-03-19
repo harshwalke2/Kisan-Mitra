@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   LayoutDashboard,
   Sprout,
@@ -28,6 +28,8 @@ import { useFarmHealthStore } from '../stores/farmHealthStore';
 import { useMarketStore } from '../stores/marketStore';
 import { useToolsStore } from '../stores/toolsStore';
 import { useNotificationStore } from '../stores/notificationStore';
+import { createAvatarUrl } from '../services/apiClient';
+import { fetchAdminInsights } from '../services/socialFeatureService';
 import {
   LineChart,
   Line,
@@ -48,14 +50,30 @@ export function Dashboard({ preview = false }: DashboardProps) {
   const { t } = useLanguageStore();
   const { isAuthenticated, user } = useAuthStore();
   const { crops, weather, alerts, fetchCrops, fetchWeather } = useFarmHealthStore();
-  const { cropPrices } = useMarketStore();
+  const { cropPrices, addListing } = useMarketStore();
   const { myTools, myBookings } = useToolsStore();
-  const { notifications, unreadCount } = useNotificationStore();
+  const { notifications, unreadCount, addNotification } = useNotificationStore();
+  const [insights, setInsights] = useState<null | {
+    totalUsers: number;
+    verifiedUsers: number;
+    totalListings: number;
+    activeListings: number;
+    totalBookings: number;
+    completedBookings: number;
+    totalReviews: number;
+    verificationRate: number;
+    bookingCompletionRate: number;
+    topCrops: Array<{ name: string; count: number }>;
+    topLocations: Array<{ name: string; count: number }>;
+  }>(null);
 
   useEffect(() => {
     if (isAuthenticated) {
       fetchCrops();
       fetchWeather(20.5937, 78.9629);
+      fetchAdminInsights()
+        .then((data) => setInsights(data.insights))
+        .catch(() => setInsights(null));
     }
   }, [isAuthenticated]);
 
@@ -89,6 +107,50 @@ export function Dashboard({ preview = false }: DashboardProps) {
     value: crop.healthScore
   }));
 
+  const loadDemoScenario = () => {
+    addNotification({
+      title: 'Demo: New booking request',
+      message: 'Shivam requested your tractor for 2 days.',
+      type: 'info',
+      category: 'tools',
+      isRead: false,
+      actionUrl: '/dashboard',
+    });
+
+    addNotification({
+      title: 'Demo: Market opportunity',
+      message: 'Demand for premium wheat rose 12% in nearby mandis.',
+      type: 'success',
+      category: 'market',
+      isRead: false,
+      actionUrl: '/market',
+    });
+
+    addListing({
+      farmerId: user?.id || 'demo-farmer',
+      farmerName: user?.name || 'Demo Farmer',
+      farmerAvatar: createAvatarUrl(user?.name || 'Demo Farmer'),
+      cropName: 'Premium Wheat',
+      variety: 'HD-2967',
+      quantity: 25,
+      quantityUnit: 'quintals',
+      pricePerUnit: 2650,
+      minOrderQuantity: 2,
+      quality: 'Grade A',
+      isOrganic: true,
+      harvestDate: new Date().toISOString(),
+      expiryDate: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000).toISOString(),
+      images: ['https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=400'],
+      description: 'High protein wheat suitable for premium buyers.',
+      location: user?.location?.address || 'Pune',
+      rating: 4.8,
+      reviewCount: 11,
+      status: 'active',
+    });
+
+    alert('Demo mode loaded: sample notifications and marketplace listing added.');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -101,6 +163,11 @@ export function Dashboard({ preview = false }: DashboardProps) {
           <p className="text-gray-600 dark:text-gray-400 mt-2">
             {t('dashboard.subtitle')}
           </p>
+          {!preview && (
+            <Button className="mt-4" variant="outline" onClick={loadDemoScenario}>
+              Load Demo Mode Data
+            </Button>
+          )}
         </div>
 
         {/* Quick Stats */}
@@ -152,6 +219,45 @@ export function Dashboard({ preview = false }: DashboardProps) {
             </CardContent>
           </Card>
         </div>
+
+        <div className="grid grid-cols-2 gap-4 mb-8 sm:grid-cols-4 lg:grid-cols-6">
+          <Card><CardContent className="p-4"><p className="text-xs text-gray-500">Users</p><p className="text-xl font-semibold">{insights?.totalUsers ?? '-'}</p></CardContent></Card>
+          <Card><CardContent className="p-4"><p className="text-xs text-gray-500">Verified</p><p className="text-xl font-semibold text-emerald-600">{insights?.verifiedUsers ?? '-'}</p></CardContent></Card>
+          <Card><CardContent className="p-4"><p className="text-xs text-gray-500">Active Listings</p><p className="text-xl font-semibold">{insights?.activeListings ?? '-'}</p></CardContent></Card>
+          <Card><CardContent className="p-4"><p className="text-xs text-gray-500">Bookings</p><p className="text-xl font-semibold">{insights?.totalBookings ?? '-'}</p></CardContent></Card>
+          <Card><CardContent className="p-4"><p className="text-xs text-gray-500">Completed</p><p className="text-xl font-semibold">{insights?.completedBookings ?? '-'}</p></CardContent></Card>
+          <Card><CardContent className="p-4"><p className="text-xs text-gray-500">Reviews</p><p className="text-xl font-semibold">{insights?.totalReviews ?? '-'}</p></CardContent></Card>
+        </div>
+
+        {insights && (
+          <div className="grid grid-cols-1 gap-6 mb-8 lg:grid-cols-2">
+            <Card>
+              <CardHeader><CardTitle>Admin Insights: Top Crops</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                {insights.topCrops.length ? insights.topCrops.map((item) => (
+                  <div key={item.name} className="flex items-center justify-between text-sm">
+                    <span className="truncate">{item.name}</span>
+                    <Badge variant="secondary">{item.count}</Badge>
+                  </div>
+                )) : <p className="text-sm text-gray-500">No crop data yet.</p>}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle>Admin Insights: Top Locations</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                {insights.topLocations.length ? insights.topLocations.map((item) => (
+                  <div key={item.name} className="flex items-center justify-between text-sm">
+                    <span className="truncate">{item.name}</span>
+                    <Badge variant="secondary">{item.count}</Badge>
+                  </div>
+                )) : <p className="text-sm text-gray-500">No location data yet.</p>}
+                <div className="pt-2 text-xs text-gray-500">
+                  Verification rate: {insights.verificationRate}% | Booking completion: {insights.bookingCompletionRate}%
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Main Grid: Custom Layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

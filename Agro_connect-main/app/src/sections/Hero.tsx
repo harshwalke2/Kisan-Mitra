@@ -16,6 +16,7 @@ import type { Section } from '../App';
 
 interface HeroProps {
   onNavigate: (section: Section) => void;
+  onStartDemoTour?: () => void;
 }
 
 const features = (t: any) => [
@@ -68,9 +69,10 @@ import { useLanguageStore } from '../stores/languageStore';
 
 interface HeroProps {
   onNavigate: (section: Section) => void;
+  onStartDemoTour?: () => void;
 }
 
-export function Hero({ onNavigate }: HeroProps) {
+export function Hero({ onNavigate, onStartDemoTour }: HeroProps) {
   const { t } = useLanguageStore();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
@@ -143,6 +145,14 @@ export function Hero({ onNavigate }: HeroProps) {
               >
                 {t('hero.getStarted')}
                 <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={() => onStartDemoTour?.()}
+                className="border-white/30 bg-white/10 text-white hover:bg-white/20"
+              >
+                Start 3-Min Demo
               </Button>
             </div>
 

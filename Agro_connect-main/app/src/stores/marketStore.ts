@@ -21,6 +21,7 @@ export interface CropListing {
   farmerId: string;
   farmerName: string;
   farmerAvatar?: string;
+  isVerifiedSeller?: boolean;
   cropName: string;
   variety: string;
   quantity: number;
@@ -85,7 +86,15 @@ interface MarketState {
   orders: Order[];
   cart: CartItem[];
   fetchCropPrices: () => void;
-  fetchListings: (filters?: any) => Promise<void>;
+  fetchListings: (filters?: {
+    cropName?: string;
+    location?: string;
+    isOrganic?: boolean;
+    minPrice?: number;
+    maxPrice?: number;
+    minRating?: number;
+    sortBy?: 'newest' | 'priceAsc' | 'priceDesc' | 'ratingDesc';
+  }) => Promise<void>;
   addListing: (listing: Omit<CropListing, 'id' | 'createdAt'> & Partial<Pick<CropListing, 'id'>>) => void;
   updateListing: (id: string, data: Partial<CropListing>) => void;
   deleteListing: (id: string) => void;
@@ -348,12 +357,20 @@ export const useMarketStore = create<MarketState>(persist((set, get) => ({
     set({ cropPrices: mockCropPrices });
   },
 
-  fetchListings: async (filters?: any) => {
+  fetchListings: async (filters) => {
     const { userListings } = get();
 
     let backendListings: CropListing[] = [];
     try {
-      const response = await fetchBackendListings('crop');
+      const response = await fetchBackendListings({
+        category: 'crop',
+        q: filters?.cropName,
+        location: filters?.location,
+        minPrice: filters?.minPrice,
+        maxPrice: filters?.maxPrice,
+        minRating: filters?.minRating,
+        sortBy: filters?.sortBy,
+      });
       backendListings = response.listings.map((listing: BackendListingResponse) => {
         const owner = typeof listing.ownerId === 'string' ? null : listing.ownerId;
         const metadata = listing.metadata || {};
@@ -364,6 +381,7 @@ export const useMarketStore = create<MarketState>(persist((set, get) => ({
           farmerId: owner?._id || String(listing.ownerId),
           farmerName,
           farmerAvatar: createAvatarUrl(farmerName),
+          isVerifiedSeller: owner?.verificationStatus === 'verified',
           cropName: listing.title,
           variety: String(metadata['variety'] || 'Standard'),
           quantity: Number(listing.quantity || 1),
@@ -423,6 +441,21 @@ export const useMarketStore = create<MarketState>(persist((set, get) => ({
       }
       if (filters.maxPrice) {
         filtered = filtered.filter(l => l.pricePerUnit <= filters.maxPrice);
+      }
+      if (filters.minRating) {
+        filtered = filtered.filter(l => l.rating >= filters.minRating);
+      }
+
+      if (filters.sortBy === 'priceAsc') {
+        filtered = [...filtered].sort((a, b) => a.pricePerUnit - b.pricePerUnit);
+      } else if (filters.sortBy === 'priceDesc') {
+        filtered = [...filtered].sort((a, b) => b.pricePerUnit - a.pricePerUnit);
+      } else if (filters.sortBy === 'ratingDesc') {
+        filtered = [...filtered].sort((a, b) => b.rating - a.rating);
+      } else {
+        filtered = [...filtered].sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
       }
     }
 

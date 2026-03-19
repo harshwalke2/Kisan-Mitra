@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { body, param } from 'express-validator';
 import {
   createBooking,
+  getBookingAvailability,
   getMyBookings,
   updateBookingStatus,
 } from '../controllers/bookingController';
@@ -10,6 +11,7 @@ import { authMiddleware } from '../middleware/auth';
 const router = Router();
 
 router.get('/bookings/me', authMiddleware, getMyBookings);
+router.get('/bookings/availability/:listingId', authMiddleware, [param('listingId').isString().isLength({ min: 1 })], getBookingAvailability);
 
 router.post(
   '/bookings',

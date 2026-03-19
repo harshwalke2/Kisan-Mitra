@@ -5,6 +5,7 @@ import { AuthRequest } from '../middleware/auth';
 import Conversation from '../models/Conversation';
 import Message from '../models/Message';
 import User from '../models/User';
+import { createAndEmitNotification } from '../services/notificationService';
 import { canUsersChat } from '../services/chatAuthorization';
 import { emitMessageToUser } from '../socket/chatSocket';
 
@@ -155,6 +156,16 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
     };
 
     emitMessageToUser(receiverId, realtimePayload);
+
+    const sender = await User.findById(senderId).select('username').lean();
+    void createAndEmitNotification({
+      recipientId: receiverId,
+      title: 'New message',
+      message: `${sender?.username || 'Farmer'}: ${trimmedMessage.slice(0, 120)}`,
+      type: 'info',
+      category: 'chat',
+      actionUrl: '/chat',
+    }).catch(() => undefined);
 
     const sortedParticipants = [senderId, receiverId].sort();
     void Conversation.findOneAndUpdate(

@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { Types } from 'mongoose';
 import { AuthRequest } from '../middleware/auth';
 import FollowRequest from '../models/FollowRequest';
+import Booking from '../models/Booking';
 import Listing from '../models/Listing';
 import Review from '../models/Review';
 import User from '../models/User';
@@ -55,9 +56,41 @@ export const getPublicProfile = async (req: AuthRequest, res: Response): Promise
         .lean(),
     ]);
 
+    const bookingStats = await Booking.aggregate([
+      {
+        $match: {
+          $or: [
+            { ownerId: new Types.ObjectId(userId) },
+            { requesterId: new Types.ObjectId(userId) },
+          ],
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalBookings: { $sum: 1 },
+          completedBookings: {
+            $sum: {
+              $cond: [{ $eq: ['$status', 'completed'] }, 1, 0],
+            },
+          },
+        },
+      },
+    ]);
+
     const averageRating = reviewStats[0]?.averageRating || 0;
     const totalReviews = reviewStats[0]?.totalReviews || 0;
-    const trustScore = Math.round((averageRating / 5) * 100);
+    const totalBookings = bookingStats[0]?.totalBookings || 0;
+    const completedBookings = bookingStats[0]?.completedBookings || 0;
+
+    const ratingScore = Math.min(100, Math.max(0, (averageRating / 5) * 100));
+    const completionScore = totalBookings > 0 ? (completedBookings / totalBookings) * 100 : 0;
+    const reviewVolumeScore = Math.min(100, totalReviews * 20);
+
+    const weightedRating = ratingScore * 0.7;
+    const weightedCompletion = completionScore * 0.2;
+    const weightedReviewVolume = reviewVolumeScore * 0.1;
+    const trustScore = Math.round(weightedRating + weightedCompletion + weightedReviewVolume);
 
     const currentUserId = String(req.userId || '').trim();
     let relationship = null;
@@ -97,6 +130,16 @@ export const getPublicProfile = async (req: AuthRequest, res: Response): Promise
         averageRating: Number(averageRating.toFixed(2)),
         totalReviews,
         trustScore,
+        trustBreakdown: {
+          ratingScore: Math.round(ratingScore),
+          completionScore: Math.round(completionScore),
+          reviewVolumeScore: Math.round(reviewVolumeScore),
+          weightedRating: Math.round(weightedRating),
+          weightedCompletion: Math.round(weightedCompletion),
+          weightedReviewVolume: Math.round(weightedReviewVolume),
+          totalBookings,
+          completedBookings,
+        },
       },
       reviews,
       relationship,

@@ -4,6 +4,8 @@ import { Types } from 'mongoose';
 import { AuthRequest } from '../middleware/auth';
 import Booking from '../models/Booking';
 import Review from '../models/Review';
+import User from '../models/User';
+import { createAndEmitNotification } from '../services/notificationService';
 
 export const createReview = async (req: AuthRequest, res: Response): Promise<void> => {
   const errors = validationResult(req);
@@ -51,6 +53,16 @@ export const createReview = async (req: AuthRequest, res: Response): Promise<voi
       },
       { upsert: true, new: true }
     );
+
+    const reviewer = await User.findById(reviewerId).select('username').lean();
+    void createAndEmitNotification({
+      recipientId: revieweeId,
+      title: 'New review received',
+      message: `${reviewer?.username || 'A farmer'} rated you ${rating}/5.`,
+      type: rating >= 4 ? 'success' : 'info',
+      category: 'system',
+      actionUrl: '/profile',
+    }).catch(() => undefined);
 
     res.status(201).json({ message: 'Review saved', review });
   } catch (error) {

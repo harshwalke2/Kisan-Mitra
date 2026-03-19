@@ -12,8 +12,11 @@ import cropRecommendationRoutes from '../api/cropRecommendationRoutes';
 import followRoutes from '../api/followRoutes';
 import listingRoutes from '../api/listingRoutes';
 import messageRoutes from '../api/messageRoutes';
+import notificationRoutes from '../api/notificationRoutes';
 import profileRoutes from '../api/profileRoutes';
 import reviewRoutes from '../api/reviewRoutes';
+import verificationRoutes from '../api/verificationRoutes';
+import adminRoutes from '../api/adminRoutes';
 import { connectDB } from '../config/db';
 import { initChatSocket } from '../socket/chatSocket';
 
@@ -35,7 +38,17 @@ app.use(helmet({
 
 app.use(cors({
   origin: (origin, callback) => {
+    const isDevLocalOrigin =
+      process.env.NODE_ENV === 'development' &&
+      Boolean(origin) &&
+      /^https?:\/\/(localhost|127\.0\.0\.1):(\d+)$/i.test(String(origin));
+
     if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    if (isDevLocalOrigin) {
       callback(null, true);
       return;
     }
@@ -72,6 +85,9 @@ app.use('/api', listingRoutes);
 app.use('/api', bookingRoutes);
 app.use('/api', reviewRoutes);
 app.use('/api', profileRoutes);
+app.use('/api', notificationRoutes);
+app.use('/api', verificationRoutes);
+app.use('/api', adminRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -108,7 +124,16 @@ app.get('/api', (req, res) => {
       createReview: 'POST /api/reviews',
       getUserReviews: 'GET /api/reviews/:userId',
       getMyProfile: 'GET /api/profile/me',
-      getPublicProfile: 'GET /api/users/:userId/profile'
+      getPublicProfile: 'GET /api/users/:userId/profile',
+      getNotifications: 'GET /api/notifications',
+      markNotificationAsRead: 'PATCH /api/notifications/:notificationId/read',
+      markAllNotificationsAsRead: 'PATCH /api/notifications/read-all',
+      deleteNotification: 'DELETE /api/notifications/:notificationId',
+      verificationStatus: 'GET /api/verification/status',
+      submitVerification: 'POST /api/verification/submit',
+      reviewVerification: 'POST /api/verification/review',
+      bookingAvailability: 'GET /api/bookings/availability/:listingId',
+      adminInsights: 'GET /api/admin/insights'
     }
   });
 });

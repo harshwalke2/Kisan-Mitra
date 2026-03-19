@@ -23,8 +23,9 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Progress } from '@/components/ui/progress';
 import { useAuthStore } from '../stores/authStore';
-import { fetchUserProfile } from '../services/socialFeatureService';
+import { fetchUserProfile, fetchVerificationStatus, submitVerificationRequest } from '../services/socialFeatureService';
 
 const languages = [
   { code: 'en', label: 'English' },
@@ -58,6 +59,16 @@ export function Profile() {
     averageRating: number;
     totalReviews: number;
     trustScore: number;
+    trustBreakdown?: {
+      ratingScore: number;
+      completionScore: number;
+      reviewVolumeScore: number;
+      weightedRating: number;
+      weightedCompletion: number;
+      weightedReviewVolume: number;
+      totalBookings: number;
+      completedBookings: number;
+    };
   } | null>(null);
   const [recentReviews, setRecentReviews] = useState<
     Array<{
@@ -78,6 +89,10 @@ export function Profile() {
     schemeAlerts: true,
     weatherAlerts: true
   });
+  const [verificationMethod, setVerificationMethod] = useState<'aadhaar' | 'digilocker'>('aadhaar');
+  const [aadhaarNumber, setAadhaarNumber] = useState('');
+  const [verificationLoading, setVerificationLoading] = useState(false);
+  const [verificationState, setVerificationState] = useState<any>(null);
 
   if (!isAuthenticated) {
     return (
@@ -110,6 +125,7 @@ export function Profile() {
           averageRating: data.profile.averageRating,
           totalReviews: data.profile.totalReviews,
           trustScore: data.profile.trustScore,
+          trustBreakdown: data.profile.trustBreakdown,
         });
         setRecentReviews(data.reviews || []);
       })
@@ -121,6 +137,34 @@ export function Profile() {
       cancelled = true;
     };
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    fetchVerificationStatus()
+      .then((data) => setVerificationState(data.verification))
+      .catch(() => undefined);
+  }, [isAuthenticated]);
+
+  const handleSubmitVerification = async () => {
+    try {
+      setVerificationLoading(true);
+      const payload =
+        verificationMethod === 'aadhaar'
+          ? { method: 'aadhaar' as const, aadhaarNumber }
+          : { method: 'digilocker' as const, digilockerConsent: true };
+
+      const response = await submitVerificationRequest(payload);
+      setVerificationState(response.verification);
+      alert('Verification submitted successfully. Status is now pending review.');
+    } catch (error) {
+      alert('Verification submission failed. Please check your details and try again.');
+    } finally {
+      setVerificationLoading(false);
+    }
+  };
 
   const handleSave = () => {
     if (editedUser) {
@@ -232,6 +276,47 @@ export function Profile() {
 
             <Card>
               <CardHeader>
+                <CardTitle>Trust Score Breakdown</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-gray-600">
+                  Trust score is calculated from rating quality, booking completion reliability, and review history.
+                </p>
+
+                <div className="space-y-3">
+                  <div>
+                    <div className="mb-1 flex items-center justify-between text-sm">
+                      <span>Rating Quality (70% weight)</span>
+                      <span className="font-medium">{socialStats?.trustBreakdown?.ratingScore ?? 0}%</span>
+                    </div>
+                    <Progress value={socialStats?.trustBreakdown?.ratingScore ?? 0} />
+                  </div>
+
+                  <div>
+                    <div className="mb-1 flex items-center justify-between text-sm">
+                      <span>Booking Completion (20% weight)</span>
+                      <span className="font-medium">{socialStats?.trustBreakdown?.completionScore ?? 0}%</span>
+                    </div>
+                    <Progress value={socialStats?.trustBreakdown?.completionScore ?? 0} />
+                  </div>
+
+                  <div>
+                    <div className="mb-1 flex items-center justify-between text-sm">
+                      <span>Review Volume (10% weight)</span>
+                      <span className="font-medium">{socialStats?.trustBreakdown?.reviewVolumeScore ?? 0}%</span>
+                    </div>
+                    <Progress value={socialStats?.trustBreakdown?.reviewVolumeScore ?? 0} />
+                  </div>
+                </div>
+
+                <div className="rounded-md border bg-gray-50 p-3 text-sm text-gray-700">
+                  Completed bookings: {socialStats?.trustBreakdown?.completedBookings ?? 0} / {socialStats?.trustBreakdown?.totalBookings ?? 0}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
                 <CardTitle>Personal Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -299,6 +384,58 @@ export function Profile() {
                     Save Changes
                   </Button>
                 )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Kisan Verification (Aadhaar / DigiLocker)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="rounded-md border bg-gray-50 p-3 text-sm">
+                  Current status:{' '}
+                  <span className="font-semibold capitalize">{verificationState?.verificationStatus || user?.verificationStatus || 'unverified'}</span>
+                  {verificationState?.verificationMethod && (
+                    <span className="ml-2 text-gray-600">via {verificationState.verificationMethod}</span>
+                  )}
+                  {verificationState?.verificationRejectionReason && (
+                    <p className="mt-2 text-red-600">Reason: {verificationState.verificationRejectionReason}</p>
+                  )}
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Button
+                    type="button"
+                    variant={verificationMethod === 'aadhaar' ? 'default' : 'outline'}
+                    onClick={() => setVerificationMethod('aadhaar')}
+                  >
+                    Verify with Aadhaar
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={verificationMethod === 'digilocker' ? 'default' : 'outline'}
+                    onClick={() => setVerificationMethod('digilocker')}
+                  >
+                    Verify with DigiLocker
+                  </Button>
+                </div>
+
+                {verificationMethod === 'aadhaar' ? (
+                  <Input
+                    placeholder="Enter 12-digit Aadhaar number"
+                    value={aadhaarNumber}
+                    onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, '').slice(0, 12))}
+                    maxLength={12}
+                  />
+                ) : (
+                  <p className="text-sm text-gray-600">
+                    DigiLocker verification will mark your profile as pending and admin can approve after review.
+                  </p>
+                )}
+
+                <Button onClick={handleSubmitVerification} disabled={verificationLoading} className="w-full">
+                  {verificationLoading ? 'Submitting...' : 'Submit Verification'}
+                </Button>
               </CardContent>
             </Card>
 

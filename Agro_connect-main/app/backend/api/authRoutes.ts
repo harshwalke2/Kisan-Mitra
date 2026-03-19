@@ -11,6 +11,12 @@ router.post(
     body('username').trim().isLength({ min: 3, max: 50 }),
     body('email').isEmail(),
     body('password').isLength({ min: 6, max: 128 }),
+    body('phone').optional().isString().trim().isLength({ min: 7, max: 30 }),
+    body('location').optional().isString().trim().isLength({ min: 2, max: 200 }),
+    body('farmName').optional().isString().trim().isLength({ min: 2, max: 120 }),
+    body('farmSize').optional().isFloat({ min: 0, max: 1000000 }),
+    body('preferredLanguage').optional().isString().trim().isLength({ min: 2, max: 20 }),
+    body('role').optional().isIn(['farmer', 'admin']),
   ],
   register
 );

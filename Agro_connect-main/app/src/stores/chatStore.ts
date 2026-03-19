@@ -290,15 +290,17 @@ const connectRealtime = (set: any, get: any) => {
       messages: isCurrentChat ? [...state.messages, nextMessage] : state.messages,
     });
 
-    if (!isCurrentChat) {
-      notify('New message', `${nextMessage.senderName}: ${nextMessage.content}`);
-    }
+    // Notification badge updates are driven by backend receiveNotification events.
   });
 
   socket.on('chatError', (payload: { message?: string }) => {
     if (payload?.message) {
       notify('Chat update', payload.message);
     }
+  });
+
+  socket.on('receiveNotification', (payload: Record<string, unknown>) => {
+    useNotificationStore.getState().addNotificationFromServer(payload as any);
   });
 
   socket.on('presenceSnapshot', (payload: { onlineUserIds?: string[] }) => {

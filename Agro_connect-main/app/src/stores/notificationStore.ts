@@ -1,3 +1,5 @@
+import { apiRequest } from '../services/apiClient';
+import { useAuthStore } from './authStore';
 import { create } from './zustand-mock';
 
 export interface Notification {
@@ -14,92 +16,89 @@ export interface Notification {
 interface NotificationState {
   notifications: Notification[];
   unreadCount: number;
-  fetchNotifications: () => void;
-  markAsRead: (id: string) => void;
-  markAllAsRead: () => void;
+  fetchNotifications: () => Promise<void>;
+  markAsRead: (id: string) => Promise<void>;
+  markAllAsRead: () => Promise<void>;
   addNotification: (notification: Omit<Notification, 'id' | 'createdAt'>) => void;
-  removeNotification: (id: string) => void;
+  addNotificationFromServer: (notification: Partial<Notification> & { id?: string; _id?: string }) => void;
+  removeNotification: (id: string) => Promise<void>;
 }
 
-const mockNotifications: Notification[] = [
-  {
-    id: '1',
-    title: 'Fire Alert Detected',
-    message: 'Unusual heat signature detected in Sector B of your farm. Please check immediately.',
-    type: 'alert',
-    category: 'farm',
-    isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
-    actionUrl: '/farm-health'
-  },
-  {
-    id: '2',
-    title: 'Wheat Price Increased',
-    message: 'Wheat prices have increased by 8% in your region. Good time to sell!',
-    type: 'success',
-    category: 'market',
-    isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString()
-  },
-  {
-    id: '3',
-    title: 'New Tool Booking Request',
-    message: 'Ramesh Patel wants to rent your Tractor from March 15-20.',
-    type: 'info',
-    category: 'tools',
-    isRead: true,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString()
-  },
-  {
-    id: '4',
-    title: 'PM-KISAN Scheme Update',
-    message: 'New installment of PM-KISAN has been released. Check your eligibility.',
-    type: 'info',
-    category: 'scheme',
-    isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString()
-  },
-  {
-    id: '5',
-    title: 'Disease Risk Warning',
-    message: 'High humidity levels may cause fungal diseases in your rice crop. Take preventive measures.',
-    type: 'warning',
-    category: 'farm',
-    isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString()
-  }
-];
+const normalize = (raw: any): Notification => ({
+  id: String(raw?.id || raw?._id || Date.now()),
+  title: String(raw?.title || 'Notification'),
+  message: String(raw?.message || ''),
+  type: raw?.type || 'info',
+  category: raw?.category || 'system',
+  isRead: Boolean(raw?.isRead),
+  createdAt: raw?.createdAt || new Date().toISOString(),
+  actionUrl: raw?.actionUrl,
+});
+
+const withUnreadCount = (notifications: Notification[]) => ({
+  notifications,
+  unreadCount: notifications.filter((item) => !item.isRead).length,
+});
 
 export const useNotificationStore = create<NotificationState>((set, get) => ({
-  notifications: mockNotifications,
-  unreadCount: mockNotifications.filter(n => !n.isRead).length,
+  notifications: [],
+  unreadCount: 0,
 
-  fetchNotifications: () => {
-    // Simulate API call
-    set({ 
-      notifications: mockNotifications,
-      unreadCount: mockNotifications.filter(n => !n.isRead).length
-    });
+  fetchNotifications: async () => {
+    const token = useAuthStore.getState().token;
+    if (!token) {
+      set({ notifications: [], unreadCount: 0 });
+      return;
+    }
+
+    try {
+      const data = await apiRequest<{ notifications: any[] }>('/api/notifications', { token });
+      const normalized = (data.notifications || []).map((item) => normalize(item));
+      set(withUnreadCount(normalized));
+    } catch (error) {
+      // Keep current state when fetch fails to avoid wiping UI context.
+    }
   },
 
-  markAsRead: (id: string) => {
+  markAsRead: async (id: string) => {
+    const token = useAuthStore.getState().token;
     const { notifications } = get();
-    const updated = notifications.map(n => 
-      n.id === id ? { ...n, isRead: true } : n
-    );
-    set({ 
-      notifications: updated,
-      unreadCount: updated.filter(n => !n.isRead).length
-    });
+    const updated = notifications.map((n) => (n.id === id ? { ...n, isRead: true } : n));
+
+    set(withUnreadCount(updated));
+
+    if (!token) {
+      return;
+    }
+
+    try {
+      await apiRequest(`/api/notifications/${encodeURIComponent(id)}/read`, {
+        method: 'PATCH',
+        token,
+      });
+    } catch (error) {
+      // Ignore API failures after optimistic update.
+    }
   },
 
-  markAllAsRead: () => {
+  markAllAsRead: async () => {
+    const token = useAuthStore.getState().token;
     const { notifications } = get();
-    const updated = notifications.map(n => ({ ...n, isRead: true }));
-    set({ 
-      notifications: updated,
-      unreadCount: 0
-    });
+    const updated = notifications.map((n) => ({ ...n, isRead: true }));
+    set(withUnreadCount(updated));
+
+    if (!token) {
+      return;
+    }
+
+    try {
+      await apiRequest('/api/notifications/read-all', {
+        method: 'PATCH',
+        token,
+      });
+    } catch (error) {
+      // Ignore API failures after optimistic update.
+    }
   },
 
   addNotification: (notification) => {
@@ -107,20 +106,45 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     const newNotification: Notification = {
       ...notification,
       id: `${Date.now()}`,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
-    set({ 
-      notifications: [newNotification, ...notifications],
-      unreadCount: get().unreadCount + 1
-    });
+
+    set(withUnreadCount([newNotification, ...notifications]));
   },
 
-  removeNotification: (id: string) => {
+  addNotificationFromServer: (notification) => {
+    const next = normalize(notification);
     const { notifications } = get();
-    const updated = notifications.filter(n => n.id !== id);
-    set({ 
-      notifications: updated,
-      unreadCount: updated.filter(n => !n.isRead).length
-    });
-  }
+    const existingIndex = notifications.findIndex((item) => item.id === next.id);
+
+    if (existingIndex >= 0) {
+      const updated = [...notifications];
+      updated[existingIndex] = { ...updated[existingIndex], ...next };
+      set(withUnreadCount(updated));
+      return;
+    }
+
+    set(withUnreadCount([next, ...notifications]));
+  },
+
+  removeNotification: async (id: string) => {
+    const token = useAuthStore.getState().token;
+    const { notifications } = get();
+    const updated = notifications.filter((n) => n.id !== id);
+
+    set(withUnreadCount(updated));
+
+    if (!token) {
+      return;
+    }
+
+    try {
+      await apiRequest(`/api/notifications/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        token,
+      });
+    } catch (error) {
+      // Ignore API failures after optimistic update.
+    }
+  },
 }));

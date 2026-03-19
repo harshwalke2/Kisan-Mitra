@@ -16,10 +16,43 @@ const signToken = (userId: string): string => {
   return jwt.sign({ userId }, secret, { expiresIn: '7d' });
 };
 
+const resolveResetBaseUrl = (req: Request): string => {
+  const requestOrigin = String(req.get('origin') || '').trim();
+  // In dev, prefer the active frontend origin (for Vite's auto-switched ports).
+  if (process.env.NODE_ENV === 'development' && /^https?:\/\/localhost:\d+$/i.test(requestOrigin)) {
+    return requestOrigin;
+  }
+
+  const frontends = (process.env.FRONTEND_URLS || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return (
+    process.env.FRONTEND_RESET_URL ||
+    frontends[0] ||
+    process.env.FRONTEND_URL ||
+    'http://localhost:5173'
+  );
+};
+
 const buildUserResponse = (user: {
   _id: Types.ObjectId | string;
   username: string;
   email: string;
+  phone?: string;
+  location?: string;
+  farmName?: string;
+  farmSize?: number;
+  preferredLanguage?: string;
+  role?: 'farmer' | 'admin';
+  verificationStatus?: 'unverified' | 'pending' | 'verified' | 'rejected';
+  verificationMethod?: 'aadhaar' | 'digilocker';
+  aadhaarLast4?: string;
+  digilockerLinked?: boolean;
+  verificationSubmittedAt?: Date;
+  verifiedAt?: Date;
+  verificationRejectionReason?: string;
   followers?: Types.ObjectId[];
   following?: Types.ObjectId[];
   createdAt?: Date;
@@ -27,6 +60,19 @@ const buildUserResponse = (user: {
   _id: user._id,
   username: user.username,
   email: user.email,
+  phone: user.phone,
+  location: user.location,
+  farmName: user.farmName,
+  farmSize: user.farmSize,
+  preferredLanguage: user.preferredLanguage || 'en',
+  role: user.role || 'farmer',
+  verificationStatus: user.verificationStatus || 'unverified',
+  verificationMethod: user.verificationMethod,
+  aadhaarLast4: user.aadhaarLast4,
+  digilockerLinked: user.digilockerLinked || false,
+  verificationSubmittedAt: user.verificationSubmittedAt,
+  verifiedAt: user.verifiedAt,
+  verificationRejectionReason: user.verificationRejectionReason,
   followersCount: user.followers?.length || 0,
   followingCount: user.following?.length || 0,
   createdAt: user.createdAt,
@@ -41,7 +87,7 @@ export const getCurrentUser = async (req: AuthRequest, res: Response): Promise<v
     }
 
     const user = await User.findById(userId)
-      .select('_id username email followers following createdAt updatedAt')
+      .select('_id username email phone location farmName farmSize preferredLanguage role verificationStatus verificationMethod aadhaarLast4 digilockerLinked verificationSubmittedAt verifiedAt verificationRejectionReason followers following createdAt updatedAt')
       .lean();
 
     if (!user) {
@@ -59,10 +105,16 @@ export const getCurrentUser = async (req: AuthRequest, res: Response): Promise<v
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { username, email, password } = req.body as {
+    const { username, email, password, phone, location, farmName, farmSize, preferredLanguage, role } = req.body as {
       username?: string;
       email?: string;
       password?: string;
+      phone?: string;
+      location?: string;
+      farmName?: string;
+      farmSize?: number;
+      preferredLanguage?: string;
+      role?: 'farmer' | 'admin';
     };
 
     if (!username || !email || !password) {
@@ -82,6 +134,15 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       username: username.trim(),
       email: normalizedEmail,
       password: hashedPassword,
+      phone: phone ? phone.trim() : undefined,
+      location: location ? location.trim() : undefined,
+      farmName: farmName ? farmName.trim() : undefined,
+      farmSize:
+        typeof farmSize === 'number' && Number.isFinite(farmSize)
+          ? farmSize
+          : undefined,
+      preferredLanguage: preferredLanguage ? preferredLanguage.trim() : 'en',
+      role: role === 'admin' ? 'admin' : 'farmer',
     });
 
     const token = signToken(user._id.toString());
@@ -159,7 +220,7 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
     user.resetPasswordExpires = expiresAt;
     await user.save();
 
-    const frontendBase = process.env.FRONTEND_RESET_URL || process.env.FRONTEND_URL || process.env.FRONTEND_URLS?.split(',')[0] || 'http://localhost:5188';
+    const frontendBase = resolveResetBaseUrl(req);
     const resetLink = `${frontendBase.replace(/\/$/, '')}/reset-password?token=${rawToken}`;
     const mailResult = await sendPasswordResetEmail({
       toEmail: user.email,

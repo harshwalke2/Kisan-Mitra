@@ -10,7 +10,19 @@ import { authMiddleware } from '../middleware/auth';
 
 const router = Router();
 
-router.get('/listings', [query('category').optional().isString()], getListings);
+router.get(
+  '/listings',
+  [
+    query('category').optional().isString(),
+    query('q').optional().isString(),
+    query('location').optional().isString(),
+    query('minPrice').optional().isFloat({ min: 0 }),
+    query('maxPrice').optional().isFloat({ min: 0 }),
+    query('minRating').optional().isFloat({ min: 0, max: 5 }),
+    query('sortBy').optional().isIn(['newest', 'priceAsc', 'priceDesc', 'ratingDesc']),
+  ],
+  getListings
+);
 router.get('/listings/me', authMiddleware, getMyListings);
 
 router.post(

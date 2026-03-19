@@ -1,4 +1,4 @@
-import { apiRequest, createAvatarUrl } from '../services/apiClient';
+import { ApiError, apiRequest, createAvatarUrl } from '../services/apiClient';
 import { create, persist } from './zustand-mock';
 
 export interface User {
@@ -7,6 +7,13 @@ export interface User {
   username: string;
   email: string;
   role: 'farmer' | 'admin';
+  verificationStatus?: 'unverified' | 'pending' | 'verified' | 'rejected';
+  verificationMethod?: 'aadhaar' | 'digilocker';
+  aadhaarLast4?: string;
+  digilockerLinked?: boolean;
+  verificationSubmittedAt?: string;
+  verifiedAt?: string;
+  verificationRejectionReason?: string;
   phone?: string;
   location?: {
     latitude: number;
@@ -38,7 +45,7 @@ interface AuthState {
   checkAuth: () => void;
   updateProfile: (data: Partial<User>) => void;
   forgotPassword: (email: string) => Promise<ForgotPasswordResult>;
-  resetPassword: (token: string, newPassword: string) => Promise<boolean>;
+  resetPassword: (token: string, newPassword: string) => Promise<ResetPasswordResult>;
   switchUser: (userId: string) => void;
 }
 
@@ -60,6 +67,19 @@ type AuthResponse = {
     _id: string;
     username: string;
     email: string;
+    phone?: string;
+    location?: string;
+    farmName?: string;
+    farmSize?: number;
+    preferredLanguage?: string;
+    role?: 'farmer' | 'admin';
+    verificationStatus?: 'unverified' | 'pending' | 'verified' | 'rejected';
+    verificationMethod?: 'aadhaar' | 'digilocker';
+    aadhaarLast4?: string;
+    digilockerLinked?: boolean;
+    verificationSubmittedAt?: string;
+    verifiedAt?: string;
+    verificationRejectionReason?: string;
     followersCount?: number;
     followingCount?: number;
     createdAt?: string;
@@ -72,6 +92,13 @@ export type ForgotPasswordResult = {
   message?: string;
   previewUrl?: string;
   devResetLink?: string;
+  error?: string;
+};
+
+export type ResetPasswordResult = {
+  success: boolean;
+  message?: string;
+  error?: string;
 };
 
 const normalizeUser = (user: AuthResponse['user'], previous?: User | null): User => ({
@@ -79,11 +106,31 @@ const normalizeUser = (user: AuthResponse['user'], previous?: User | null): User
   name: user.username,
   username: user.username,
   email: user.email,
-  role: previous?.role || 'farmer',
-  phone: previous?.phone,
-  location: previous?.location,
-  farmDetails: previous?.farmDetails,
-  preferredLanguage: previous?.preferredLanguage || 'en',
+  role: user.role || previous?.role || 'farmer',
+  verificationStatus: user.verificationStatus || previous?.verificationStatus || 'unverified',
+  verificationMethod: user.verificationMethod || previous?.verificationMethod,
+  aadhaarLast4: user.aadhaarLast4 || previous?.aadhaarLast4,
+  digilockerLinked: user.digilockerLinked ?? previous?.digilockerLinked,
+  verificationSubmittedAt: user.verificationSubmittedAt || previous?.verificationSubmittedAt,
+  verifiedAt: user.verifiedAt || previous?.verifiedAt,
+  verificationRejectionReason: user.verificationRejectionReason || previous?.verificationRejectionReason,
+  phone: user.phone || previous?.phone,
+  location: user.location
+    ? {
+        latitude: previous?.location?.latitude ?? 20.5937,
+        longitude: previous?.location?.longitude ?? 78.9629,
+        address: user.location,
+      }
+    : previous?.location,
+  farmDetails: user.farmName
+    ? {
+        farmName: user.farmName,
+        farmSize: user.farmSize || 0,
+        crops: previous?.farmDetails?.crops || [],
+        soilType: previous?.farmDetails?.soilType || 'Unknown',
+      }
+    : previous?.farmDetails,
+  preferredLanguage: user.preferredLanguage || previous?.preferredLanguage || 'en',
   avatar: previous?.avatar || createAvatarUrl(user.username),
   followersCount: user.followersCount || 0,
   followingCount: user.followingCount || 0,
@@ -129,6 +176,12 @@ export const useAuthStore = create<AuthState>(
               username: userData.name,
               email: userData.email,
               password: userData.password,
+              phone: userData.phone,
+              location: userData.location,
+              farmName: userData.farmName,
+              farmSize: userData.farmSize,
+              preferredLanguage: userData.preferredLanguage || 'en',
+              role: userData.role,
             },
           });
 
@@ -228,19 +281,28 @@ export const useAuthStore = create<AuthState>(
             devResetLink: data.devResetLink,
           };
         } catch (error) {
-          return { success: false };
+          return {
+            success: false,
+            error: error instanceof ApiError ? error.message : 'Failed to send reset link',
+          };
         }
       },
 
       resetPassword: async (token: string, newPassword: string) => {
         try {
-          await apiRequest('/api/auth/reset-password', {
+          const data = await apiRequest<{ message?: string }>('/api/auth/reset-password', {
             method: 'POST',
             body: { token, newPassword },
           });
-          return true;
+          return {
+            success: true,
+            message: data.message || 'Password reset successful',
+          };
         } catch (error) {
-          return false;
+          return {
+            success: false,
+            error: error instanceof ApiError ? error.message : 'Unable to reset password',
+          };
         }
       },
 

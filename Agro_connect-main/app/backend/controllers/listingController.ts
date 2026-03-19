@@ -59,6 +59,12 @@ export const getListings = async (req: AuthRequest, res: Response): Promise<void
     const category = String(req.query.category || '').trim();
     const ownerId = String(req.query.ownerId || '').trim();
     const status = String(req.query.status || 'active').trim();
+    const q = String(req.query.q || '').trim();
+    const location = String(req.query.location || '').trim();
+    const minPrice = Number(req.query.minPrice || 0);
+    const maxPrice = Number(req.query.maxPrice || 0);
+    const minRating = Number(req.query.minRating || 0);
+    const sortBy = String(req.query.sortBy || 'newest').trim();
 
     const filter: Record<string, unknown> = {};
 
@@ -74,9 +80,40 @@ export const getListings = async (req: AuthRequest, res: Response): Promise<void
       filter.status = status;
     }
 
+    if (q) {
+      filter.$or = [
+        { title: { $regex: q, $options: 'i' } },
+        { description: { $regex: q, $options: 'i' } },
+      ];
+    }
+
+    if (location) {
+      filter.location = { $regex: location, $options: 'i' };
+    }
+
+    if (!Number.isNaN(minPrice) && minPrice > 0) {
+      filter.pricePerUnit = { ...(filter.pricePerUnit as object), $gte: minPrice };
+    }
+
+    if (!Number.isNaN(maxPrice) && maxPrice > 0) {
+      filter.pricePerUnit = { ...(filter.pricePerUnit as object), $lte: maxPrice };
+    }
+
+    if (!Number.isNaN(minRating) && minRating > 0) {
+      filter['metadata.rating'] = { $gte: minRating };
+    }
+
+    const sortMap: Record<string, Record<string, 1 | -1>> = {
+      newest: { createdAt: -1 },
+      priceAsc: { pricePerUnit: 1 },
+      priceDesc: { pricePerUnit: -1 },
+      ratingDesc: { 'metadata.rating': -1, createdAt: -1 },
+    };
+    const sort = sortMap[sortBy] || sortMap.newest;
+
     const listings = await Listing.find(filter)
-      .populate('ownerId', '_id username email')
-      .sort({ createdAt: -1 })
+      .populate('ownerId', '_id username email verificationStatus verifiedAt')
+      .sort(sort)
       .lean();
 
     res.status(200).json({ listings });

@@ -33,7 +33,7 @@ export type Section =
   | 'profile';
 
 function App() {
-  const isResetPasswordRoute = window.location.pathname === '/reset-password';
+  const isResetPasswordRoute = window.location.pathname.startsWith('/reset-password');
 
   if (isResetPasswordRoute) {
     return <ResetPasswordPage />;
@@ -43,6 +43,31 @@ function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
+  const [isDemoTourOpen, setIsDemoTourOpen] = useState(false);
+  const [demoStep, setDemoStep] = useState(0);
+
+  const demoSteps: Array<{ section: Section; title: string; message: string }> = [
+    {
+      section: 'crop-recommendation',
+      title: 'Step 1: AI Crop Advisor',
+      message: 'Show how farmers get crop suggestions with profit and fertilizer guidance.',
+    },
+    {
+      section: 'market',
+      title: 'Step 2: Smart Marketplace',
+      message: 'Demonstrate advanced filters, verified seller badges, and quick availability checks.',
+    },
+    {
+      section: 'chat',
+      title: 'Step 3: Real-time Communication',
+      message: 'Highlight chat with live notifications and booking updates.',
+    },
+    {
+      section: 'profile',
+      title: 'Step 4: Trust and Verification',
+      message: 'Show KYC verification and trust score breakdown for buyer confidence.',
+    },
+  ];
 
   const { isAuthenticated, user, checkAuth } = useAuthStore();
   const { notifications, unreadCount, fetchNotifications } = useNotificationStore();
@@ -61,6 +86,18 @@ function App() {
   const handleAuthClick = (mode: 'login' | 'register') => {
     setAuthMode(mode);
     setIsAuthModalOpen(true);
+  };
+
+  const startDemoTour = () => {
+    setDemoStep(0);
+    setCurrentSection(demoSteps[0].section);
+    setIsDemoTourOpen(true);
+  };
+
+  const moveDemoStep = (direction: -1 | 1) => {
+    const nextStep = Math.max(0, Math.min(demoSteps.length - 1, demoStep + direction));
+    setDemoStep(nextStep);
+    setCurrentSection(demoSteps[nextStep].section);
   };
 
   const handleNavigateToChat = async (ownerId: string) => {
@@ -95,7 +132,7 @@ function App() {
       case 'home':
         return (
           <>
-            <Hero onNavigate={setCurrentSection} />
+            <Hero onNavigate={setCurrentSection} onStartDemoTour={startDemoTour} />
             <Dashboard preview />
           </>
         );
@@ -116,7 +153,7 @@ function App() {
       case 'profile':
         return <Profile />;
       default:
-        return <Hero onNavigate={setCurrentSection} />;
+        return <Hero onNavigate={setCurrentSection} onStartDemoTour={startDemoTour} />;
     }
   };
 
@@ -152,6 +189,49 @@ function App() {
       />
 
       <AIChatbot />
+
+      {isDemoTourOpen && (
+        <div className="fixed bottom-6 left-1/2 z-[70] w-[92%] max-w-3xl -translate-x-1/2 rounded-xl border border-emerald-200 bg-white p-4 shadow-2xl">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-sm font-semibold text-emerald-700">Guided Demo Tour</p>
+            <button
+              className="text-sm text-gray-500 hover:text-gray-700"
+              onClick={() => setIsDemoTourOpen(false)}
+            >
+              Close
+            </button>
+          </div>
+          <p className="font-medium">{demoSteps[demoStep].title}</p>
+          <p className="mt-1 text-sm text-gray-600">{demoSteps[demoStep].message}</p>
+          <div className="mt-4 flex items-center justify-between">
+            <p className="text-xs text-gray-500">{demoStep + 1} / {demoSteps.length}</p>
+            <div className="flex gap-2">
+              <button
+                className="rounded-md border px-3 py-1.5 text-sm disabled:opacity-40"
+                disabled={demoStep === 0}
+                onClick={() => moveDemoStep(-1)}
+              >
+                Back
+              </button>
+              {demoStep < demoSteps.length - 1 ? (
+                <button
+                  className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm text-white"
+                  onClick={() => moveDemoStep(1)}
+                >
+                  Next
+                </button>
+              ) : (
+                <button
+                  className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm text-white"
+                  onClick={() => setIsDemoTourOpen(false)}
+                >
+                  Finish
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

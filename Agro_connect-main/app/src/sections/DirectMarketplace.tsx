@@ -30,7 +30,7 @@ import { useAuthStore } from '../stores/authStore';
 import { PaymentModal } from '@/components/PaymentModal';
 import { Cart } from './Cart';
 import { useLanguageStore } from '../stores/languageStore';
-import { createBackendBooking, createBackendListing } from '../services/socialFeatureService';
+import { createBackendBooking, createBackendListing, fetchBookingAvailability } from '../services/socialFeatureService';
 import { isMongoObjectId } from '../services/apiClient';
 
 const categories = ['All', 'Grains', 'Vegetables', 'Fruits', 'Pulses', 'Spices'];
@@ -50,6 +50,10 @@ export function DirectMarketplace({ onNavigateToChat }: DirectMarketplaceProps) 
   const [cartQuantity, setCartQuantity] = useState(1);
   const [selectedListing, setSelectedListing] = useState<any>(null);
   const [showOrganicOnly, setShowOrganicOnly] = useState(false);
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [minRating, setMinRating] = useState('0');
+  const [sortBy, setSortBy] = useState<'newest' | 'priceAsc' | 'priceDesc' | 'ratingDesc'>('newest');
 
   const { listings, wishlist, cart, fetchListings, addToWishlist, removeFromWishlist, addListing, addToCart } = useMarketStore();
   const { isAuthenticated, user } = useAuthStore();
@@ -194,15 +198,47 @@ export function DirectMarketplace({ onNavigateToChat }: DirectMarketplaceProps) 
   };
 
   useEffect(() => {
-    void fetchListings();
-  }, [fetchListings]);
+    const preferredCrop = localStorage.getItem('marketPreferredCrop');
+    if (preferredCrop) {
+      setSearchQuery(preferredCrop);
+      localStorage.removeItem('marketPreferredCrop');
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchListings({
+      cropName: searchQuery,
+      location: searchQuery,
+      isOrganic: showOrganicOnly ? true : undefined,
+      minPrice: Number(minPrice || 0),
+      maxPrice: Number(maxPrice || 0),
+      minRating: Number(minRating || 0),
+      sortBy,
+    });
+  }, [
+    fetchListings,
+    searchQuery,
+    showOrganicOnly,
+    minPrice,
+    maxPrice,
+    minRating,
+    sortBy,
+  ]);
 
   useEffect(() => {
     if (activeTab !== 'browse') {
       return;
     }
 
-    void fetchListings();
+    void fetchListings({
+      cropName: searchQuery,
+      location: searchQuery,
+      isOrganic: showOrganicOnly ? true : undefined,
+      minPrice: Number(minPrice || 0),
+      maxPrice: Number(maxPrice || 0),
+      minRating: Number(minRating || 0),
+      sortBy,
+    });
 
     const timer = setInterval(() => {
       void fetchListings();
@@ -210,12 +246,28 @@ export function DirectMarketplace({ onNavigateToChat }: DirectMarketplaceProps) 
 
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
-        void fetchListings();
+        void fetchListings({
+          cropName: searchQuery,
+          location: searchQuery,
+          isOrganic: showOrganicOnly ? true : undefined,
+          minPrice: Number(minPrice || 0),
+          maxPrice: Number(maxPrice || 0),
+          minRating: Number(minRating || 0),
+          sortBy,
+        });
       }
     };
 
     const handleFocus = () => {
-      void fetchListings();
+      void fetchListings({
+        cropName: searchQuery,
+        location: searchQuery,
+        isOrganic: showOrganicOnly ? true : undefined,
+        minPrice: Number(minPrice || 0),
+        maxPrice: Number(maxPrice || 0),
+        minRating: Number(minRating || 0),
+        sortBy,
+      });
     };
 
     document.addEventListener('visibilitychange', handleVisibility);
@@ -226,7 +278,7 @@ export function DirectMarketplace({ onNavigateToChat }: DirectMarketplaceProps) 
       document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [activeTab, fetchListings]);
+  }, [activeTab, fetchListings, searchQuery, showOrganicOnly, minPrice, maxPrice, minRating, sortBy]);
 
   const filteredListings = listings.filter(listing => {
     const matchesSearch = listing.cropName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -243,6 +295,34 @@ export function DirectMarketplace({ onNavigateToChat }: DirectMarketplaceProps) 
     }
     setSelectedListing(listing);
     setIsContactDialogOpen(true);
+  };
+
+  const handleCheckAvailability = async (listing: any) => {
+    if (!isAuthenticated) {
+      alert('Please login to check availability');
+      return;
+    }
+
+    if (!isMongoObjectId(listing.id)) {
+      alert('Availability is available for synced backend listings only.');
+      return;
+    }
+
+    try {
+      const data = await fetchBookingAvailability(listing.id);
+      if (!data.unavailableRanges.length) {
+        alert('This listing is currently available for your preferred dates.');
+        return;
+      }
+
+      const preview = data.unavailableRanges
+        .slice(0, 5)
+        .map((range) => `${new Date(range.startDate).toLocaleDateString()} - ${new Date(range.endDate).toLocaleDateString()} (${range.status})`)
+        .join('\n');
+      alert(`Unavailable ranges:\n${preview}`);
+    } catch (error) {
+      alert('Unable to fetch availability right now. Please try again.');
+    }
   };
 
   const toggleWishlist = (id: string) => {
@@ -352,6 +432,45 @@ export function DirectMarketplace({ onNavigateToChat }: DirectMarketplaceProps) 
               </div>
             </div>
 
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <Input
+                type="number"
+                min="0"
+                placeholder="Min price"
+                value={minPrice}
+                onChange={(e) => setMinPrice(e.target.value)}
+              />
+              <Input
+                type="number"
+                min="0"
+                placeholder="Max price"
+                value={maxPrice}
+                onChange={(e) => setMaxPrice(e.target.value)}
+              />
+              <Select value={minRating} onValueChange={setMinRating}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Min rating" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">Any rating</SelectItem>
+                  <SelectItem value="3">3+ stars</SelectItem>
+                  <SelectItem value="4">4+ stars</SelectItem>
+                  <SelectItem value="4.5">4.5+ stars</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Newest</SelectItem>
+                  <SelectItem value="priceAsc">Price: Low to High</SelectItem>
+                  <SelectItem value="priceDesc">Price: High to Low</SelectItem>
+                  <SelectItem value="ratingDesc">Best Rated</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Category Pills */}
             <div className="flex flex-wrap gap-2">
               {categories.map(cat => (
@@ -435,7 +554,12 @@ export function DirectMarketplace({ onNavigateToChat }: DirectMarketplaceProps) 
                         className="w-8 h-8 rounded-full"
                       />
                       <div className="flex-1">
-                        <p className="text-sm font-medium">{listing.farmerName}</p>
+                        <p className="text-sm font-medium flex items-center gap-2">
+                          {listing.farmerName}
+                          {listing.isVerifiedSeller && (
+                            <Badge className="bg-emerald-100 text-emerald-700">Verified Seller</Badge>
+                          )}
+                        </p>
                         <p className="text-xs text-gray-500">{listing.reviewCount} reviews</p>
                       </div>
                     </div>
@@ -454,6 +578,9 @@ export function DirectMarketplace({ onNavigateToChat }: DirectMarketplaceProps) 
                       >
                         <MessageCircle className="w-4 h-4 mr-2" />
                         Chat
+                      </Button>
+                      <Button variant="outline" className="flex-1" onClick={() => handleCheckAvailability(listing)}>
+                        Check dates
                       </Button>
                       <Button variant="outline" size="icon">
                         <Phone className="w-4 h-4" />

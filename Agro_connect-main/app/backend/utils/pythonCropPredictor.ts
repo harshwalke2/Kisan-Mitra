@@ -2,8 +2,8 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { CropRecommendationInput, CropRecommendationResult } from '../models/cropRecommendationModel';
 
-// Resolve to backend/ml_model/predict_crop.py (works both from src and dist directories)
-const SCRIPT_PATH = path.resolve(__dirname, '../../ml_model/predict_crop.py');
+// Resolve to backend/ml_model/predict_crop.py (works from backend/utils and backend/dist/utils)
+const SCRIPT_PATH = path.resolve(__dirname, '../ml_model/predict_crop.py');
 const PYTHON_CANDIDATES = [
   process.env.PYTHON_EXECUTABLE,
   'python',

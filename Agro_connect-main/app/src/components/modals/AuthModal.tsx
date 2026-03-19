@@ -44,6 +44,7 @@ export function AuthModal({ isOpen, onClose, mode, onModeChange }: AuthModalProp
   const [forgotDeliveryMode, setForgotDeliveryMode] = useState<'email' | 'preview' | 'not-configured' | null>(null);
   const [forgotPreviewUrl, setForgotPreviewUrl] = useState('');
   const [forgotDevResetLink, setForgotDevResetLink] = useState('');
+  const [forgotError, setForgotError] = useState('');
 
   // Login form state
   const [loginData, setLoginData] = useState({
@@ -104,9 +105,16 @@ export function AuthModal({ isOpen, onClose, mode, onModeChange }: AuthModalProp
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    setForgotError('');
+
+    const email = forgotPasswordEmail.trim();
+    if (!email) {
+      setForgotError('Please enter your email address.');
+      return;
+    }
+
     setIsLoading(true);
-    
-    const result = await forgotPassword(forgotPasswordEmail);
+    const result = await forgotPassword(email);
     
     setIsLoading(false);
     if (result.success) {
@@ -115,7 +123,7 @@ export function AuthModal({ isOpen, onClose, mode, onModeChange }: AuthModalProp
       setForgotDevResetLink(result.devResetLink || '');
       setForgotPasswordSent(true);
     } else {
-      alert('Email not found');
+      setForgotError(result.error || 'Unable to send reset link. Please try again.');
     }
   };
 
@@ -137,7 +145,7 @@ export function AuthModal({ isOpen, onClose, mode, onModeChange }: AuthModalProp
               <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">Check Your Email</h3>
               <p className="text-gray-500 mb-4">
-                We've sent password reset instructions to {forgotPasswordEmail}
+                If this email is registered, reset instructions were sent to {forgotPasswordEmail}
               </p>
               {forgotDeliveryMode === 'preview' && forgotPreviewUrl && (
                 <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-left text-sm text-amber-900">
@@ -157,7 +165,7 @@ export function AuthModal({ isOpen, onClose, mode, onModeChange }: AuthModalProp
               )}
               {forgotDeliveryMode === 'not-configured' && (
                 <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-left text-sm text-red-800">
-                  Email provider is not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, and SMTP_FROM in backend .env.
+                  Email provider is not configured. In development, use the Development reset link above to continue instantly.
                 </div>
               )}
               <Button onClick={() => {
@@ -187,6 +195,7 @@ export function AuthModal({ isOpen, onClose, mode, onModeChange }: AuthModalProp
                   />
                 </div>
               </div>
+              {forgotError && <p className="text-sm text-red-600">{forgotError}</p>}
               <Button 
                 type="submit" 
                 className="w-full bg-gradient-to-r from-green-600 to-emerald-600"

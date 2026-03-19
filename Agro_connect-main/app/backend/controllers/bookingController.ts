@@ -4,6 +4,8 @@ import { Types } from 'mongoose';
 import { AuthRequest } from '../middleware/auth';
 import Booking, { BookingStatus } from '../models/Booking';
 import Listing from '../models/Listing';
+import User from '../models/User';
+import { createAndEmitNotification } from '../services/notificationService';
 
 export const createBooking = async (req: AuthRequest, res: Response): Promise<void> => {
   const errors = validationResult(req);
@@ -45,6 +47,20 @@ export const createBooking = async (req: AuthRequest, res: Response): Promise<vo
     const qty = quantity && quantity > 0 ? quantity : 1;
     const totalAmount = listing.pricePerUnit * qty * dayCount;
 
+    const overlapping = await Booking.findOne({
+      listingId: new Types.ObjectId(listingId),
+      status: { $in: ['requested', 'accepted', 'active'] },
+      startDate: { $lte: end },
+      endDate: { $gte: start },
+    })
+      .select('_id')
+      .lean();
+
+    if (overlapping) {
+      res.status(409).json({ message: 'Selected dates are not available for this listing' });
+      return;
+    }
+
     const booking = await Booking.create({
       listingId: new Types.ObjectId(listingId),
       ownerId: new Types.ObjectId(ownerId),
@@ -55,6 +71,16 @@ export const createBooking = async (req: AuthRequest, res: Response): Promise<vo
       totalAmount,
       notes: notes?.trim(),
     });
+
+    const requester = await User.findById(requesterId).select('username').lean();
+    void createAndEmitNotification({
+      recipientId: ownerId,
+      title: 'New booking request',
+      message: `${requester?.username || 'A farmer'} requested your listing \"${listing.title}\".`,
+      type: 'info',
+      category: 'tools',
+      actionUrl: '/dashboard',
+    }).catch(() => undefined);
 
     res.status(201).json({ message: 'Booking request created', booking });
   } catch (error) {
@@ -125,6 +151,19 @@ export const updateBookingStatus = async (req: AuthRequest, res: Response): Prom
 
     await booking.save();
 
+    const recipientId = isOwner ? booking.requesterId.toString() : booking.ownerId.toString();
+    const sender = await User.findById(userId).select('username').lean();
+    const listing = await Listing.findById(booking.listingId).select('title').lean();
+
+    void createAndEmitNotification({
+      recipientId,
+      title: 'Booking updated',
+      message: `${sender?.username || 'A farmer'} changed booking \"${listing?.title || 'listing'}\" to ${status}.`,
+      type: status === 'rejected' || status === 'cancelled' ? 'warning' : 'success',
+      category: 'tools',
+      actionUrl: '/dashboard',
+    }).catch(() => undefined);
+
     if (['active', 'completed'].includes(status)) {
       await Listing.findByIdAndUpdate(booking.listingId, {
         $set: {
@@ -136,5 +175,34 @@ export const updateBookingStatus = async (req: AuthRequest, res: Response): Prom
     res.status(200).json({ message: 'Booking updated', booking });
   } catch (error) {
     res.status(500).json({ message: 'Failed to update booking' });
+  }
+};
+
+export const getBookingAvailability = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const listingId = String(req.params.listingId || '').trim();
+    if (!Types.ObjectId.isValid(listingId)) {
+      res.status(400).json({ message: 'Invalid listingId' });
+      return;
+    }
+
+    const bookings = await Booking.find({
+      listingId: new Types.ObjectId(listingId),
+      status: { $in: ['requested', 'accepted', 'active'] },
+    })
+      .select('_id startDate endDate status')
+      .sort({ startDate: 1 })
+      .lean();
+
+    res.status(200).json({
+      unavailableRanges: bookings.map((booking) => ({
+        id: booking._id,
+        startDate: booking.startDate,
+        endDate: booking.endDate,
+        status: booking.status,
+      })),
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch booking availability' });
   }
 };

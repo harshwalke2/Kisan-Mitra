@@ -68,6 +68,8 @@ function ConfidenceBar({ value }: { value: number }) {
 
 export function CropRecommendationForm() {
   const [formData, setFormData] = useState<CropRecommendationPayload>(initialFormState);
+  const [location, setLocation] = useState('');
+  const [budget, setBudget] = useState<number>(50000);
   const [fieldErrors, setFieldErrors] = useState<ValidationErrors>({});
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<CropRecommendationResponse | null>(null);
@@ -77,6 +79,48 @@ export function CropRecommendationForm() {
     () => (result ? (result.confidence * 100).toFixed(1) : null),
     [result]
   );
+
+  const assistantPlan = useMemo(() => {
+    if (!result) {
+      return null;
+    }
+
+    const priceMap: Record<string, number> = {
+      rice: 2800,
+      wheat: 2450,
+      maize: 2200,
+      cotton: 7200,
+      sugarcane: 380,
+      barley: 2100,
+      millet: 2600,
+      pulses: 6500,
+    };
+
+    const cropKey = result.recommended_crop.toLowerCase();
+    const marketPrice = priceMap[cropKey] || 3200;
+    const expectedYield = Math.max(8, Math.round(formData.rainfall / 40 + formData.nitrogen / 20));
+    const grossRevenue = expectedYield * marketPrice;
+    const estimatedInputCost = Math.min(Math.max(12000, budget * 0.45), grossRevenue * 0.65);
+    const estimatedProfit = grossRevenue - estimatedInputCost;
+
+    const fertilizerTip =
+      formData.nitrogen < 50
+        ? 'Increase nitrogen-rich fertilizer in split doses (2-3 applications).'
+        : formData.phosphorus < 30
+          ? 'Add phosphorus-rich basal fertilizer before sowing.'
+          : formData.potassium < 35
+            ? 'Increase potassium supply for stronger disease resistance.'
+            : 'Current NPK is balanced; maintain schedule with soil moisture monitoring.';
+
+    return {
+      marketPrice,
+      expectedYield,
+      grossRevenue,
+      estimatedInputCost,
+      estimatedProfit,
+      fertilizerTip,
+    };
+  }, [budget, formData.nitrogen, formData.phosphorus, formData.potassium, formData.rainfall, result]);
 
   const updateField = (key: keyof CropRecommendationPayload, value: string) => {
     const numeric = parseFloat(value);
@@ -152,6 +196,29 @@ export function CropRecommendationForm() {
                   )}
                 </div>
               ))}
+
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">Location (optional)</label>
+                <Input
+                  type="text"
+                  placeholder="District or city"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                />
+                <p className="text-xs text-gray-400">Used for planning context and export in demo.</p>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">Budget (INR per season)</label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="500"
+                  value={budget}
+                  onChange={(e) => setBudget(Number(e.target.value || 0))}
+                />
+                <p className="text-xs text-gray-400">Used for profit estimation in AI assistant.</p>
+              </div>
 
               <div className="sm:col-span-2 pt-2">
                 <Button
@@ -244,6 +311,38 @@ export function CropRecommendationForm() {
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {assistantPlan && (
+                  <div className="rounded-xl border border-emerald-200 bg-white p-4">
+                    <p className="text-sm font-semibold text-emerald-700">AI Farmer Assistant Plan</p>
+                    <div className="mt-3 grid grid-cols-1 gap-2 text-sm text-gray-700 sm:grid-cols-2">
+                      <p>Location: <span className="font-medium">{location || 'Not provided'}</span></p>
+                      <p>Market price: <span className="font-medium">Rs {assistantPlan.marketPrice.toLocaleString()}/quintal</span></p>
+                      <p>Expected yield: <span className="font-medium">{assistantPlan.expectedYield} quintals/acre</span></p>
+                      <p>Estimated revenue: <span className="font-medium">Rs {Math.round(assistantPlan.grossRevenue).toLocaleString()}</span></p>
+                      <p>Estimated input cost: <span className="font-medium">Rs {Math.round(assistantPlan.estimatedInputCost).toLocaleString()}</span></p>
+                      <p>
+                        Estimated profit:{' '}
+                        <span className={`font-medium ${assistantPlan.estimatedProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                          Rs {Math.round(assistantPlan.estimatedProfit).toLocaleString()}
+                        </span>
+                      </p>
+                    </div>
+                    <div className="mt-3 rounded-md bg-emerald-50 p-3 text-sm text-emerald-800">
+                      Fertilizer guidance: {assistantPlan.fertilizerTip}
+                    </div>
+                    <Button
+                      type="button"
+                      className="mt-3 w-full"
+                      onClick={() => {
+                        localStorage.setItem('marketPreferredCrop', result.recommended_crop);
+                        alert('Preferred crop saved. Open Market section to see matched listings quickly.');
+                      }}
+                    >
+                      Send To Marketplace Search
+                    </Button>
                   </div>
                 )}
               </div>
