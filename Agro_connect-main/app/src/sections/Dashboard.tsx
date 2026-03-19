@@ -48,6 +48,7 @@ interface DashboardProps {
 
 export function Dashboard({ preview = false }: DashboardProps) {
   const { t } = useLanguageStore();
+  const isProduction = import.meta.env.PROD;
   const { isAuthenticated, user } = useAuthStore();
   const { crops, weather, alerts, fetchCrops, fetchWeather } = useFarmHealthStore();
   const { cropPrices, addListing } = useMarketStore();
@@ -163,7 +164,7 @@ export function Dashboard({ preview = false }: DashboardProps) {
           <p className="text-gray-600 dark:text-gray-400 mt-2">
             {t('dashboard.subtitle')}
           </p>
-          {!preview && (
+          {!preview && !isProduction && (
             <Button className="mt-4" variant="outline" onClick={loadDemoScenario}>
               Load Demo Mode Data
             </Button>

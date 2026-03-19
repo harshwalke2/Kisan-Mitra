@@ -272,7 +272,28 @@ export const fetchAdminInsights = async () => {
   }>('/api/admin/insights', { token });
 };
 
-export const fetchLiveMarketInsights = async () => {
+export const fetchLiveMarketInsights = async (params?: {
+  state?: string;
+  city?: string;
+  commodity?: string;
+  limit?: number;
+}) => {
+  const query = new URLSearchParams();
+  if (params?.state) {
+    query.set('state', params.state);
+  }
+  if (params?.city) {
+    query.set('city', params.city);
+  }
+  if (params?.commodity) {
+    query.set('commodity', params.commodity);
+  }
+  if (typeof params?.limit === 'number' && params.limit > 0) {
+    query.set('limit', String(params.limit));
+  }
+
+  const endpoint = query.toString() ? `/api/market/insights?${query.toString()}` : '/api/market/insights';
+
   return apiRequest<{
     insights: Array<{
       id: string;
@@ -282,6 +303,25 @@ export const fetchLiveMarketInsights = async () => {
       impact: 'high' | 'medium' | 'low';
       createdAt: string;
     }>;
+    observations: Array<{
+      state: string;
+      city: string;
+      market: string;
+      commodity: string;
+      location: string;
+      modalPrice: number;
+      arrivalDate: string;
+    }>;
+    statistics: {
+      totalRecords: number;
+      totalStates: number;
+      totalCities: number;
+      totalMarkets: number;
+      totalCommodities: number;
+      stateOptions: string[];
+      cityOptions: string[];
+      lastUpdated: string | null;
+    };
     source?: string;
-  }>('/api/market/insights');
+  }>(endpoint);
 };

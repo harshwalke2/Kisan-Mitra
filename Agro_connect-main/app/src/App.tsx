@@ -21,6 +21,8 @@ import { useNotificationStore } from './stores/notificationStore';
 import { isMongoObjectId } from './services/apiClient';
 import './App.css';
 
+const TOUR_COMPLETED_KEY = 'agroconnect_onboarding_tour_completed_v1';
+
 export type Section =
   | 'home'
   | 'farm-health'
@@ -45,6 +47,9 @@ function App() {
   const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
   const [isDemoTourOpen, setIsDemoTourOpen] = useState(false);
   const [demoStep, setDemoStep] = useState(0);
+  const [hasCompletedTour, setHasCompletedTour] = useState<boolean>(() => {
+    return localStorage.getItem(TOUR_COMPLETED_KEY) === 'true';
+  });
 
   const demoSteps: Array<{ section: Section; title: string; message: string }> = [
     {
@@ -83,15 +88,32 @@ function App() {
     void useChatStore.getState().bootstrap();
   }, [isAuthenticated, user?.id]);
 
+  useEffect(() => {
+    if (!hasCompletedTour) {
+      setDemoStep(0);
+      setCurrentSection(demoSteps[0].section);
+      setIsDemoTourOpen(true);
+    }
+  }, [hasCompletedTour]);
+
   const handleAuthClick = (mode: 'login' | 'register') => {
     setAuthMode(mode);
     setIsAuthModalOpen(true);
   };
 
   const startDemoTour = () => {
+    if (hasCompletedTour) {
+      return;
+    }
     setDemoStep(0);
     setCurrentSection(demoSteps[0].section);
     setIsDemoTourOpen(true);
+  };
+
+  const closeDemoTour = () => {
+    setIsDemoTourOpen(false);
+    setHasCompletedTour(true);
+    localStorage.setItem(TOUR_COMPLETED_KEY, 'true');
   };
 
   const moveDemoStep = (direction: -1 | 1) => {
@@ -132,7 +154,10 @@ function App() {
       case 'home':
         return (
           <>
-            <Hero onNavigate={setCurrentSection} onStartDemoTour={startDemoTour} />
+            <Hero
+              onNavigate={setCurrentSection}
+              onStartDemoTour={hasCompletedTour ? undefined : startDemoTour}
+            />
             <Dashboard preview />
           </>
         );
@@ -153,7 +178,12 @@ function App() {
       case 'profile':
         return <Profile />;
       default:
-        return <Hero onNavigate={setCurrentSection} onStartDemoTour={startDemoTour} />;
+        return (
+          <Hero
+            onNavigate={setCurrentSection}
+            onStartDemoTour={hasCompletedTour ? undefined : startDemoTour}
+          />
+        );
     }
   };
 
@@ -196,7 +226,7 @@ function App() {
             <p className="text-sm font-semibold text-emerald-700">Guided Demo Tour</p>
             <button
               className="text-sm text-gray-500 hover:text-gray-700"
-              onClick={() => setIsDemoTourOpen(false)}
+              onClick={closeDemoTour}
             >
               Close
             </button>
@@ -223,7 +253,7 @@ function App() {
               ) : (
                 <button
                   className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm text-white"
-                  onClick={() => setIsDemoTourOpen(false)}
+                  onClick={closeDemoTour}
                 >
                   Finish
                 </button>

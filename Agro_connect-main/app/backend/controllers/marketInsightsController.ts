@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { fetchGovMarketInsights } from '../services/govMarketInsightsService';
+import { fetchGovMarketInsightsWithFilters } from '../services/govMarketInsightsService';
 
 export const getLiveMarketInsights = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -8,19 +8,41 @@ export const getLiveMarketInsights = async (req: Request, res: Response): Promis
       ? Math.min(requestedLimit, 1000)
       : 500;
 
-    const result = await fetchGovMarketInsights(limit);
+    const state = typeof req.query.state === 'string' ? req.query.state : undefined;
+    const city = typeof req.query.city === 'string' ? req.query.city : undefined;
+    const commodity = typeof req.query.commodity === 'string' ? req.query.commodity : undefined;
+
+    const result = await fetchGovMarketInsightsWithFilters({
+      sourceLimit: limit,
+      state,
+      city,
+      commodity,
+    });
 
     res.status(200).json({
       insights: result.insights,
+      observations: result.observations,
+      statistics: result.statistics,
       source: result.source,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to fetch live market insights';
-    const statusCode = message.includes('DATA_GOV_RESOURCE_ID') ? 503 : 502;
+    const statusCode = 502;
 
     res.status(statusCode).json({
       message,
       insights: [],
+      observations: [],
+      statistics: {
+        totalRecords: 0,
+        totalStates: 0,
+        totalCities: 0,
+        totalMarkets: 0,
+        totalCommodities: 0,
+        stateOptions: [],
+        cityOptions: [],
+        lastUpdated: null,
+      },
     });
   }
 };

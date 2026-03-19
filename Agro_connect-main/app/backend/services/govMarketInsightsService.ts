@@ -19,10 +19,34 @@ type DataGovResponse = {
 };
 
 type ParsedObservation = {
+  state: string;
+  city: string;
+  market: string;
   commodity: string;
   location: string;
   price: number;
   date: Date;
+};
+
+export type LiveMarketObservation = {
+  state: string;
+  city: string;
+  market: string;
+  commodity: string;
+  location: string;
+  modalPrice: number;
+  arrivalDate: string;
+};
+
+export type LiveMarketStatistics = {
+  totalRecords: number;
+  totalStates: number;
+  totalCities: number;
+  totalMarkets: number;
+  totalCommodities: number;
+  stateOptions: string[];
+  cityOptions: string[];
+  lastUpdated: string | null;
 };
 
 const DEFAULT_BASE_URL = 'https://api.data.gov.in/resource';
@@ -39,6 +63,7 @@ const DEFAULT_LOCAL_MANDI_CSV = path.resolve(
 let cacheExpiry = 0;
 let cachedInsights: LiveMarketInsight[] = [];
 let cachedSource = 'data.gov.in';
+let cachedObservations: ParsedObservation[] = [];
 
 const toNumber = (value: unknown): number | null => {
   if (typeof value === 'number') {
@@ -216,6 +241,7 @@ const parseObservation = (record: GovRecord): ParsedObservation | null => {
     || pickFirstString(normalizedRecord, ['district', 'district_name']);
   const market = pickFirstString(record, ['market', 'mandi', 'market_name'])
     || pickFirstString(normalizedRecord, ['market', 'mandi', 'market_name']);
+  const city = district || market || state || 'Unknown';
   const location = [market, district, state].filter(Boolean).join(', ') || state || 'India';
 
   const price = pickFirstNumber(record, [
@@ -257,6 +283,9 @@ const parseObservation = (record: GovRecord): ParsedObservation | null => {
   }
 
   return {
+    state: state || 'Unknown',
+    city,
+    market: market || city,
     commodity: finalCommodity,
     location,
     price,
@@ -354,19 +383,68 @@ const buildInsights = (observations: ParsedObservation[]): LiveMarketInsight[] =
 
 export const fetchGovMarketInsights = async (limit = 500): Promise<{
   insights: LiveMarketInsight[];
+  observations: LiveMarketObservation[];
+  statistics: LiveMarketStatistics;
   source: string;
 }> => {
-  if (Date.now() < cacheExpiry && cachedInsights.length > 0) {
+  return fetchGovMarketInsightsWithFilters({ sourceLimit: limit });
+};
+
+const buildStatistics = (observations: ParsedObservation[]): LiveMarketStatistics => {
+  const stateSet = new Set<string>();
+  const citySet = new Set<string>();
+  const marketSet = new Set<string>();
+  const commoditySet = new Set<string>();
+
+  let latest: Date | null = null;
+
+  for (const observation of observations) {
+    stateSet.add(observation.state);
+    citySet.add(observation.city);
+    marketSet.add(observation.market);
+    commoditySet.add(observation.commodity);
+
+    if (!latest || observation.date.getTime() > latest.getTime()) {
+      latest = observation.date;
+    }
+  }
+
+  return {
+    totalRecords: observations.length,
+    totalStates: stateSet.size,
+    totalCities: citySet.size,
+    totalMarkets: marketSet.size,
+    totalCommodities: commoditySet.size,
+    stateOptions: [...stateSet].sort((a, b) => a.localeCompare(b)),
+    cityOptions: [...citySet].sort((a, b) => a.localeCompare(b)),
+    lastUpdated: latest ? latest.toISOString() : null,
+  };
+};
+
+const toLiveObservations = (observations: ParsedObservation[]): LiveMarketObservation[] => {
+  return observations.map((observation) => ({
+    state: observation.state,
+    city: observation.city,
+    market: observation.market,
+    commodity: observation.commodity,
+    location: observation.location,
+    modalPrice: observation.price,
+    arrivalDate: observation.date.toISOString(),
+  }));
+};
+
+const loadObservations = async (sourceLimit: number): Promise<{ source: string; observations: ParsedObservation[] }> => {
+  if (Date.now() < cacheExpiry && cachedObservations.length > 0) {
     return {
-      insights: cachedInsights,
       source: cachedSource,
+      observations: cachedObservations,
     };
   }
 
   let loaded: { records: GovRecord[]; source: string };
 
   try {
-    loaded = await loadApiRecords(limit);
+    loaded = await loadApiRecords(sourceLimit);
   } catch (_error) {
     loaded = await loadLocalCsvRecords();
   }
@@ -375,15 +453,58 @@ export const fetchGovMarketInsights = async (limit = 500): Promise<{
     .map((record) => parseObservation(record))
     .filter((record): record is ParsedObservation => Boolean(record));
 
-  const insights = buildInsights(observations);
+  cachedObservations = observations;
+  cachedInsights = buildInsights(observations);
   const sourceTitle = loaded.source;
 
-  cachedInsights = insights;
   cachedSource = sourceTitle;
   cacheExpiry = Date.now() + CACHE_TTL_MS;
 
   return {
-    insights,
     source: sourceTitle,
+    observations,
+  };
+};
+
+export const fetchGovMarketInsightsWithFilters = async (params: {
+  sourceLimit?: number;
+  state?: string;
+  city?: string;
+  commodity?: string;
+}): Promise<{
+  insights: LiveMarketInsight[];
+  observations: LiveMarketObservation[];
+  statistics: LiveMarketStatistics;
+  source: string;
+}> => {
+  const sourceLimit = params.sourceLimit || 3000;
+  const loaded = await loadObservations(Math.min(sourceLimit, 10000));
+
+  const normalizedState = (params.state || '').trim().toLowerCase();
+  const normalizedCity = (params.city || '').trim().toLowerCase();
+  const normalizedCommodity = (params.commodity || '').trim().toLowerCase();
+
+  const filtered = loaded.observations.filter((observation) => {
+    if (normalizedState && observation.state.toLowerCase() !== normalizedState) {
+      return false;
+    }
+    if (normalizedCity && observation.city.toLowerCase() !== normalizedCity) {
+      return false;
+    }
+    if (normalizedCommodity && !observation.commodity.toLowerCase().includes(normalizedCommodity)) {
+      return false;
+    }
+    return true;
+  });
+
+  const insights = buildInsights(filtered);
+  const statistics = buildStatistics(filtered);
+  const observations = toLiveObservations(filtered);
+
+  return {
+    insights,
+    observations,
+    statistics,
+    source: loaded.source,
   };
 };
