@@ -26,6 +26,9 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
+// Required on Render/other reverse proxies so rate limiting keys by real client IP.
+app.set('trust proxy', 1);
+
 const allowedOrigins = (process.env.FRONTEND_URLS || process.env.FRONTEND_URL || 'http://localhost:5173,http://localhost:5188')
   .split(',')
   .map((origin) => origin.trim())
