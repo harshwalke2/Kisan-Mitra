@@ -47,10 +47,20 @@ export function MarketIntelligence() {
   const [selectedCrop, setSelectedCrop] = useState<string | null>(null);
   const [chartType, setChartType] = useState<'line' | 'bar'>('line');
 
-  const { cropPrices, insights, fetchCropPrices, getPricePrediction } = useMarketStore();
+  const {
+    cropPrices,
+    insights,
+    insightsSource,
+    insightsStatus,
+    insightsError,
+    fetchCropPrices,
+    fetchInsights,
+    getPricePrediction,
+  } = useMarketStore();
 
   useEffect(() => {
     fetchCropPrices();
+    void fetchInsights();
   }, []);
 
   const filteredPrices = cropPrices.filter(crop =>
@@ -364,6 +374,34 @@ export function MarketIntelligence() {
 
           {/* Insights Tab */}
           <TabsContent value="insights" className="space-y-6">
+            {insightsSource && (
+              <Alert className="bg-blue-50 border-blue-200">
+                <AlertDescription>
+                  Live source: {insightsSource}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {insightsStatus === 'loading' && (
+              <Alert>
+                <AlertDescription>Loading live market insights from government data...</AlertDescription>
+              </Alert>
+            )}
+
+            {insightsStatus === 'error' && (
+              <Alert className="bg-red-50 border-red-200">
+                <AlertDescription>{insightsError}</AlertDescription>
+              </Alert>
+            )}
+
+            {insightsStatus !== 'loading' && insights.length === 0 && (
+              <Alert>
+                <AlertDescription>
+                  No live insights available yet. Configure DATA_GOV_API_KEY and DATA_GOV_RESOURCE_ID on backend to enable this tab.
+                </AlertDescription>
+              </Alert>
+            )}
+
             <div className="grid gap-4">
               {insights.map((insight) => (
                 <Card key={insight.id}>

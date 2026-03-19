@@ -1,6 +1,10 @@
 import { create, persist } from './zustand-mock';
 import { createAvatarUrl } from '../services/apiClient';
-import { fetchBackendListings, type BackendListingResponse } from '../services/socialFeatureService';
+import {
+  fetchBackendListings,
+  fetchLiveMarketInsights,
+  type BackendListingResponse,
+} from '../services/socialFeatureService';
 
 export interface CropPrice {
   id: string;
@@ -81,11 +85,15 @@ interface MarketState {
   cropPrices: CropPrice[];
   listings: CropListing[];
   insights: MarketInsight[];
+  insightsSource?: string;
+  insightsStatus: 'idle' | 'loading' | 'ready' | 'error';
+  insightsError?: string;
   userListings: CropListing[];
   wishlist: string[];
   orders: Order[];
   cart: CartItem[];
   fetchCropPrices: () => void;
+  fetchInsights: () => Promise<void>;
   fetchListings: (filters?: {
     cropName?: string;
     location?: string;
@@ -260,29 +268,13 @@ const mockListings: CropListing[] = [
   }
 ];
 
-const mockInsights: MarketInsight[] = [
-  {
-    id: '1',
-    title: 'Wheat Prices Expected to Rise',
-    description: 'Due to lower production estimates, wheat prices are expected to increase by 10-15% in the coming months.',
-    category: 'Price Alert',
-    impact: 'high',
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString()
-  },
-  {
-    id: '2',
-    title: 'High Demand for Organic Produce',
-    description: 'Consumer preference for organic crops has increased by 35% this quarter.',
-    category: 'Demand Trend',
-    impact: 'medium',
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString()
-  }
-];
-
 export const useMarketStore = create<MarketState>(persist((set, get) => ({
   cropPrices: mockCropPrices,
   listings: mockListings,
-  insights: mockInsights,
+  insights: [],
+  insightsSource: undefined,
+  insightsStatus: 'idle',
+  insightsError: undefined,
   userListings: [],
   wishlist: [],
   orders: [],
@@ -355,6 +347,26 @@ export const useMarketStore = create<MarketState>(persist((set, get) => ({
 
   fetchCropPrices: () => {
     set({ cropPrices: mockCropPrices });
+  },
+
+  fetchInsights: async () => {
+    set({ insightsStatus: 'loading', insightsError: undefined });
+
+    try {
+      const response = await fetchLiveMarketInsights();
+      set({
+        insights: response.insights || [],
+        insightsSource: response.source,
+        insightsStatus: 'ready',
+        insightsError: undefined,
+      });
+    } catch (error) {
+      set({
+        insights: [],
+        insightsStatus: 'error',
+        insightsError: 'Live market insights are unavailable right now. Please try again shortly.',
+      });
+    }
   },
 
   fetchListings: async (filters) => {

@@ -271,3 +271,17 @@ export const fetchAdminInsights = async () => {
     };
   }>('/api/admin/insights', { token });
 };
+
+export const fetchLiveMarketInsights = async () => {
+  return apiRequest<{
+    insights: Array<{
+      id: string;
+      title: string;
+      description: string;
+      category: string;
+      impact: 'high' | 'medium' | 'low';
+      createdAt: string;
+    }>;
+    source?: string;
+  }>('/api/market/insights');
+};
