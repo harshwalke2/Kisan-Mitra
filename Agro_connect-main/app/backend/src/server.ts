@@ -33,10 +33,10 @@ app.set('trust proxy', 1);
 
 const allowedOrigins = (process.env.FRONTEND_URLS || process.env.FRONTEND_URL || 'http://localhost:5173,http://localhost:5188')
   .split(',')
-  .map((origin) => origin.trim())
+  .map((origin) => origin.replace(/\s+/g, '').trim())
   .filter(Boolean);
 
-const normalizeOrigin = (value: string): string => value.trim().replace(/\/+$/, '').toLowerCase();
+const normalizeOrigin = (value: string): string => value.replace(/\s+/g, '').trim().replace(/\/+$/, '').toLowerCase();
 
 const allowedOriginSet = new Set(allowedOrigins.map(normalizeOrigin));
 
@@ -44,8 +44,8 @@ const allowPreviewDomains = String(process.env.ALLOW_PREVIEW_ORIGINS || 'true').
 
 const isPreviewOrigin = (origin: string): boolean => {
   const normalized = normalizeOrigin(origin);
-  return /(^|\.)netlify\.app$/i.test(new URL(normalized).hostname)
-    || /(^|\.)onrender\.com$/i.test(new URL(normalized).hostname);
+  return /^https?:\/\/([a-z0-9-]+\.)*netlify\.app(?::\d+)?$/i.test(normalized)
+    || /^https?:\/\/([a-z0-9-]+\.)*onrender\.com(?::\d+)?$/i.test(normalized);
 };
 
 const isAllowedOrigin = (origin?: string): boolean => {
@@ -67,12 +67,8 @@ const isAllowedOrigin = (origin?: string): boolean => {
   }
 
   if (allowPreviewDomains) {
-    try {
-      if (isPreviewOrigin(origin)) {
-        return true;
-      }
-    } catch {
-      return false;
+    if (isPreviewOrigin(origin)) {
+      return true;
     }
   }
 
