@@ -58,7 +58,17 @@ app.use(cors({
       return;
     }
 
-    callback(new Error(`CORS blocked for origin: ${origin}`));
+      // Allow Netlify and Render preview domains automatically in production
+      const isNetlifyOrRenderDomain =
+        Boolean(origin) &&
+        (/\.netlify\.app$/i.test(String(origin)) || /\.onrender\.com$/i.test(String(origin)));
+
+      if (isNetlifyOrRenderDomain && process.env.NODE_ENV === 'production') {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error(`CORS blocked for origin: ${origin}`));
   },
   credentials: true
 }));
@@ -165,9 +175,38 @@ app.use((req, res) => {
 // Start server
 const PORT = process.env.PORT || 5000;
 
+const socketCorsOrigin = (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+  const isDevLocalOrigin =
+    process.env.NODE_ENV === 'development' &&
+    Boolean(origin) &&
+    /^https?:\/\/(localhost|127\.0\.0\.1):(\d+)$/i.test(String(origin));
+
+  if (!origin || allowedOrigins.includes(origin)) {
+    callback(null, true);
+    return;
+  }
+
+  if (isDevLocalOrigin) {
+    callback(null, true);
+    return;
+  }
+
+  // Allow Netlify and Render preview domains in production
+  const isNetlifyOrRenderDomain =
+    Boolean(origin) &&
+    (/\.netlify\.app$/i.test(String(origin)) || /\.onrender\.com$/i.test(String(origin)));
+
+  if (isNetlifyOrRenderDomain && process.env.NODE_ENV === 'production') {
+    callback(null, true);
+    return;
+  }
+
+  callback(new Error(`Socket.IO CORS blocked for origin: ${origin}`), false);
+};
+
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
+    origin: socketCorsOrigin as any,
     methods: ['GET', 'POST'],
     credentials: true,
   },
