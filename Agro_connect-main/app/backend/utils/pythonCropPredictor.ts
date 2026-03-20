@@ -1,9 +1,31 @@
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
 import { CropRecommendationInput, CropRecommendationResult } from '../models/cropRecommendationModel';
 
-// Resolve to backend/ml_model/predict_crop.py (works from backend/utils and backend/dist/utils)
-const SCRIPT_PATH = path.resolve(__dirname, '../ml_model/predict_crop.py');
+const resolveScriptPath = (): string => {
+  const configured = process.env.PYTHON_SCRIPT_PATH?.trim();
+
+  const candidates = [
+    configured,
+    // When running from source (backend/utils)
+    path.resolve(__dirname, '../ml_model/predict_crop.py'),
+    // When running compiled code (backend/dist/utils)
+    path.resolve(__dirname, '../../ml_model/predict_crop.py'),
+    // Render/runtime fallback from backend project root
+    path.resolve(process.cwd(), 'ml_model/predict_crop.py'),
+  ].filter((value): value is string => Boolean(value));
+
+  const existing = candidates.find((candidate) => fs.existsSync(candidate));
+  if (existing) {
+    return existing;
+  }
+
+  // Return the best default so error messages still show a meaningful target path.
+  return candidates[0];
+};
+
+const SCRIPT_PATH = resolveScriptPath();
 const platformCandidates = process.platform === 'win32'
   ? ['python', 'py']
   : ['python3', 'python'];
