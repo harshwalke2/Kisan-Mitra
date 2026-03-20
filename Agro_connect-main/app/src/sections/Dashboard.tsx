@@ -72,11 +72,17 @@ export function Dashboard({ preview = false }: DashboardProps) {
     if (isAuthenticated) {
       fetchCrops();
       fetchWeather(20.5937, 78.9629);
-      fetchAdminInsights()
-        .then((data) => setInsights(data.insights))
-        .catch(() => setInsights(null));
+
+      const isAdmin = user?.role === 'admin';
+      if (isAdmin) {
+        fetchAdminInsights()
+          .then((data) => setInsights(data.insights))
+          .catch(() => setInsights(null));
+      } else {
+        setInsights(null);
+      }
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user?.role]);
 
   if (!isAuthenticated && !preview) {
     return (
