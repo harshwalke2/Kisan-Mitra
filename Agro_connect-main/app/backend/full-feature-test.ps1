@@ -17,8 +17,12 @@ function Invoke-Api {
       Uri = "$base$Path"
       Method = $Method
       Headers = $headers
-      SkipHttpErrorCheck = $true
       TimeoutSec = 30
+    }
+
+    # SkipHttpErrorCheck exists in PowerShell 7+, not in Windows PowerShell 5.1.
+    if ($PSVersionTable.PSVersion.Major -ge 7) {
+      $params['SkipHttpErrorCheck'] = $true
     }
 
     if ($null -ne $Body) {
@@ -38,10 +42,40 @@ function Invoke-Api {
       data = $parsed
     }
   } catch {
+    $statusCode = 0
+    $parsed = $null
+
+    # In Windows PowerShell, non-2xx responses throw and carry the HTTP response here.
+    $httpResponse = $_.Exception.Response
+    if ($httpResponse) {
+      try { $statusCode = [int]$httpResponse.StatusCode } catch { $statusCode = 0 }
+
+      $rawContent = ''
+      try {
+        $stream = $httpResponse.GetResponseStream()
+        if ($stream) {
+          $reader = New-Object System.IO.StreamReader($stream)
+          $rawContent = $reader.ReadToEnd()
+          $reader.Dispose()
+          $stream.Dispose()
+        }
+      } catch {
+        $rawContent = ''
+      }
+
+      if ($rawContent) {
+        try { $parsed = $rawContent | ConvertFrom-Json -Depth 50 } catch { $parsed = @{ message = $rawContent } }
+      }
+    }
+
+    if (-not $parsed) {
+      $parsed = @{ message = $_.Exception.Message }
+    }
+
     return [pscustomobject]@{
-      status = 0
-      ok = $false
-      data = @{ message = $_.Exception.Message }
+      status = $statusCode
+      ok = ($statusCode -ge 200 -and $statusCode -lt 300)
+      data = $parsed
     }
   }
 }

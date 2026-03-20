@@ -169,7 +169,7 @@ export function MarketIntelligence() {
         const response = await fetchLiveMarketInsights({
           state: selectedState === 'all' ? undefined : selectedState,
           city: selectedCity === 'all' ? undefined : selectedCity,
-          limit: 4000,
+          limit: 1000,
         });
 
         setInsights(response.insights || []);
