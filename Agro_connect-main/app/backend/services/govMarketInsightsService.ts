@@ -51,6 +51,7 @@ export type LiveMarketStatistics = {
 
 const DEFAULT_BASE_URL = 'https://api.data.gov.in/resource';
 const CACHE_TTL_MS = 10 * 60 * 1000;
+const DEFAULT_LOCAL_MAX_ROWS = 25000;
 const DEFAULT_LOCAL_MANDI_CSVS = [
   path.resolve(process.cwd(), '..', '..', '..', 'data', 'mandi', '9ef84268-d588-465a-a308-a864a43d0070.csv'),
   path.resolve(process.cwd(), '..', '..', '..', 'data', 'mandi', 'cleaned_Agriculture_price_dataset.csv'),
@@ -146,7 +147,7 @@ const parseCsvLine = (line: string): string[] => {
   return fields.map((field) => field.trim());
 };
 
-const parseLocalMandiCsv = async (csvPath: string): Promise<GovRecord[]> => {
+const parseLocalMandiCsv = async (csvPath: string, maxRows = DEFAULT_LOCAL_MAX_ROWS): Promise<GovRecord[]> => {
   const raw = await fs.readFile(csvPath, 'utf8');
   const lines = raw
     .split(/\r?\n/)
@@ -159,8 +160,13 @@ const parseLocalMandiCsv = async (csvPath: string): Promise<GovRecord[]> => {
 
   const headers = parseCsvLine(lines[0]);
   const records: GovRecord[] = [];
+  const safeMaxRows = Math.max(1, maxRows);
 
   for (let i = 1; i < lines.length; i += 1) {
+    if (records.length >= safeMaxRows) {
+      break;
+    }
+
     const row = parseCsvLine(lines[i]);
     const record: GovRecord = {};
 
@@ -326,15 +332,21 @@ const resolveLocalCsvPaths = (): string[] => {
   return configured.length > 0 ? configured : DEFAULT_LOCAL_MANDI_CSVS;
 };
 
-const loadLocalCsvRecords = async (): Promise<{ records: GovRecord[]; source: string }> => {
+const loadLocalCsvRecords = async (maxRows: number): Promise<{ records: GovRecord[]; source: string }> => {
   const csvPaths = resolveLocalCsvPaths();
   const records: GovRecord[] = [];
   const loadedNames: string[] = [];
+  const safeMaxRows = Math.max(500, Math.min(maxRows, DEFAULT_LOCAL_MAX_ROWS));
 
   for (const csvPath of csvPaths) {
+    if (records.length >= safeMaxRows) {
+      break;
+    }
+
     try {
       await fs.access(csvPath);
-      const chunk = await parseLocalMandiCsv(csvPath);
+      const remaining = safeMaxRows - records.length;
+      const chunk = await parseLocalMandiCsv(csvPath, remaining);
       records.push(...chunk);
       loadedNames.push(path.basename(csvPath));
     } catch (_error) {
@@ -347,7 +359,7 @@ const loadLocalCsvRecords = async (): Promise<{ records: GovRecord[]; source: st
   }
 
   return {
-    records,
+    records: records.slice(0, safeMaxRows),
     source: `Local mandi datasets (${loadedNames.join(', ')})`,
   };
 };
@@ -470,7 +482,7 @@ const loadObservations = async (sourceLimit: number): Promise<{ source: string; 
   try {
     loaded = await loadApiRecords(sourceLimit);
   } catch (_error) {
-    loaded = await loadLocalCsvRecords();
+    loaded = await loadLocalCsvRecords(sourceLimit);
   }
 
   const observations = loaded.records
