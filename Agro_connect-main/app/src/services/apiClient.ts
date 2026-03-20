@@ -43,10 +43,18 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   });
 
   const text = await response.text();
-  const parsed = text ? JSON.parse(text) : null;
+  let parsed: unknown = null;
+  if (text) {
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      parsed = { message: text.slice(0, 300) };
+    }
+  }
 
   if (!response.ok) {
-    throw new ApiError(parsed?.message || 'Request failed', response.status, parsed);
+    const details = parsed as { message?: string } | null;
+    throw new ApiError(details?.message || 'Request failed', response.status, parsed);
   }
 
   return parsed as T;

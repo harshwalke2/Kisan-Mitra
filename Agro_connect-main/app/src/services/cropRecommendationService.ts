@@ -21,7 +21,7 @@ export interface CropRecommendationResponse {
   alternatives: CropPrediction[];
 }
 
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5055';
 
 export async function requestCropRecommendation(
   payload: CropRecommendationPayload
