@@ -41,6 +41,7 @@ const normalizeOrigin = (value: string): string => value.replace(/\s+/g, '').tri
 const allowedOriginSet = new Set(allowedOrigins.map(normalizeOrigin));
 
 const allowPreviewDomains = String(process.env.ALLOW_PREVIEW_ORIGINS || 'true').toLowerCase() === 'true';
+const corsAllowAll = String(process.env.CORS_ALLOW_ALL || 'true').toLowerCase() === 'true';
 
 const isPreviewOrigin = (origin: string): boolean => {
   const normalized = normalizeOrigin(origin);
@@ -49,6 +50,10 @@ const isPreviewOrigin = (origin: string): boolean => {
 };
 
 const isAllowedOrigin = (origin?: string): boolean => {
+  if (corsAllowAll) {
+    return true;
+  }
+
   if (!origin) {
     return true;
   }

@@ -52,22 +52,10 @@ export type LiveMarketStatistics = {
 const DEFAULT_BASE_URL = 'https://api.data.gov.in/resource';
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const DEFAULT_LOCAL_MANDI_CSVS = [
-  path.resolve(
-    process.cwd(),
-    '..',
-    '..',
-    'data',
-    'mandi',
-    '9ef84268-d588-465a-a308-a864a43d0070.csv'
-  ),
-  path.resolve(
-    process.cwd(),
-    '..',
-    '..',
-    'data',
-    'mandi',
-    'cleaned_Agriculture_price_dataset.csv'
-  ),
+  path.resolve(process.cwd(), '..', '..', '..', 'data', 'mandi', '9ef84268-d588-465a-a308-a864a43d0070.csv'),
+  path.resolve(process.cwd(), '..', '..', '..', 'data', 'mandi', 'cleaned_Agriculture_price_dataset.csv'),
+  path.resolve(process.cwd(), '..', '..', 'data', 'mandi', '9ef84268-d588-465a-a308-a864a43d0070.csv'),
+  path.resolve(process.cwd(), '..', '..', 'data', 'mandi', 'cleaned_Agriculture_price_dataset.csv'),
 ];
 
 let cacheExpiry = 0;
