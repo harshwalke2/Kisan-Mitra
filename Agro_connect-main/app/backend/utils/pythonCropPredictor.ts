@@ -4,10 +4,13 @@ import { CropRecommendationInput, CropRecommendationResult } from '../models/cro
 
 // Resolve to backend/ml_model/predict_crop.py (works from backend/utils and backend/dist/utils)
 const SCRIPT_PATH = path.resolve(__dirname, '../ml_model/predict_crop.py');
+const platformCandidates = process.platform === 'win32'
+  ? ['python', 'py']
+  : ['python3', 'python'];
+
 const PYTHON_CANDIDATES = [
   process.env.PYTHON_EXECUTABLE,
-  'python',
-  'py'
+  ...platformCandidates,
 ].filter((value): value is string => Boolean(value));
 
 const runPredictor = (
