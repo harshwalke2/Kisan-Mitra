@@ -1,4 +1,6 @@
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5055';
+import { resolveApiBaseUrl } from './apiBaseUrl';
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 type ApiRequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';

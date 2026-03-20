@@ -1,3 +1,5 @@
+import { resolveApiBaseUrl } from './apiBaseUrl';
+
 export interface CropRecommendationPayload {
   nitrogen: number;
   phosphorus: number;
@@ -21,7 +23,7 @@ export interface CropRecommendationResponse {
   alternatives: CropPrediction[];
 }
 
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5055';
+const API_BASE_URL = resolveApiBaseUrl();
 
 export async function requestCropRecommendation(
   payload: CropRecommendationPayload
