@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { Types } from 'mongoose';
 import { AuthRequest } from '../middleware/auth';
 import Notification from '../models/Notification';
+import { generateSmartNotificationsForUser } from '../services/smartNotificationService';
 
 export const getNotifications = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -89,5 +90,45 @@ export const deleteNotification = async (req: AuthRequest, res: Response): Promi
     res.status(200).json({ message: 'Notification deleted' });
   } catch (error) {
     res.status(500).json({ message: 'Failed to delete notification' });
+  }
+};
+
+export const generateNotifications = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = String(req.userId || '').trim();
+    if (!userId || !Types.ObjectId.isValid(userId)) {
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
+    }
+
+    const body = req.body as {
+      location?: string;
+      crop?: string;
+      temperature?: number;
+      humidity?: number;
+      rainExpected?: boolean;
+      marketChangePercent?: number;
+      force?: boolean;
+    };
+
+    const result = await generateSmartNotificationsForUser(userId, {
+      location: typeof body.location === 'string' ? body.location : undefined,
+      crop: typeof body.crop === 'string' ? body.crop : undefined,
+      temperature: typeof body.temperature === 'number' ? body.temperature : undefined,
+      humidity: typeof body.humidity === 'number' ? body.humidity : undefined,
+      rainExpected: typeof body.rainExpected === 'boolean' ? body.rainExpected : undefined,
+      marketChangePercent:
+        typeof body.marketChangePercent === 'number' ? body.marketChangePercent : undefined,
+      force: typeof body.force === 'boolean' ? body.force : false,
+    });
+
+    res.status(200).json({
+      message: 'Notifications generated',
+      created: result.created,
+      skipped: result.skipped,
+      notifications: result.notifications,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to generate notifications' });
   }
 };

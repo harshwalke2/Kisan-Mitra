@@ -2,6 +2,7 @@ import mongoose, { Document, Model, Schema, Types } from 'mongoose';
 
 export type NotificationType = 'info' | 'warning' | 'success' | 'error' | 'alert';
 export type NotificationCategory = 'farm' | 'market' | 'tools' | 'chat' | 'scheme' | 'system';
+export type NotificationAlertType = 'weather' | 'pest' | 'market' | 'smart';
 
 export interface INotification extends Document {
   recipientId: Types.ObjectId;
@@ -9,6 +10,8 @@ export interface INotification extends Document {
   message: string;
   type: NotificationType;
   category: NotificationCategory;
+  alertType?: NotificationAlertType;
+  dedupeKey?: string;
   isRead: boolean;
   actionUrl?: string;
   createdAt: Date;
@@ -45,6 +48,17 @@ const notificationSchema = new Schema<INotification>(
       enum: ['farm', 'market', 'tools', 'chat', 'scheme', 'system'],
       default: 'system',
     },
+    alertType: {
+      type: String,
+      enum: ['weather', 'pest', 'market', 'smart'],
+      index: true,
+    },
+    dedupeKey: {
+      type: String,
+      trim: true,
+      maxlength: 180,
+      index: true,
+    },
     isRead: {
       type: Boolean,
       default: false,
@@ -59,6 +73,7 @@ const notificationSchema = new Schema<INotification>(
 );
 
 notificationSchema.index({ recipientId: 1, createdAt: -1 });
+notificationSchema.index({ recipientId: 1, dedupeKey: 1 });
 
 const Notification: Model<INotification> =
   mongoose.models.Notification || mongoose.model<INotification>('Notification', notificationSchema);

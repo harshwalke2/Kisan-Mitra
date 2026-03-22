@@ -50,6 +50,7 @@ export const emitNotificationToUser = (receiverId: string, payload: Record<strin
     return;
   }
   ioRef.to(receiverId).emit('receiveNotification', payload);
+  ioRef.to(receiverId).emit('newNotification', payload);
 };
 
 export const initChatSocket = (io: Server): void => {

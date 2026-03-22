@@ -28,9 +28,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Section } from '../App';
 import type { User as UserType } from '../stores/authStore';
 import { useAuthStore } from '../stores/authStore';
+import { useNotificationStore } from '../stores/notificationStore';
 
 import { useLanguageStore, type LanguageCode } from '../stores/languageStore';
 
@@ -64,6 +66,9 @@ export function Navbar({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { language: currentLanguage, setLanguage, t } = useLanguageStore();
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const { notifications, markAsRead, markAllAsRead } = useNotificationStore();
+
+  const latestNotifications = notifications.slice(0, 5);
 
   const navItems: { id: Section; label: string; icon: React.ElementType }[] = [
     { id: 'farm-health', label: t('nav.farmHealth'), icon: Heart },
@@ -152,22 +157,81 @@ export function Navbar({
 
             {/* Notifications */}
             {isAuthenticated && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="relative"
-                onClick={onNotificationClick}
-              >
-                <Bell className="w-5 h-5" />
-                {unreadNotifications > 0 && (
-                  <Badge
-                    variant="destructive"
-                    className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="relative"
                   >
-                    {unreadNotifications}
-                  </Badge>
-                )}
-              </Button>
+                    <Bell className="w-5 h-5" />
+                    {unreadNotifications > 0 && (
+                      <Badge
+                        variant="destructive"
+                        className="absolute -top-1 -right-1 h-5 min-w-5 px-1 flex items-center justify-center p-0 text-xs"
+                      >
+                        {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                      </Badge>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[360px] p-0">
+                  <div className="flex items-center justify-between px-3 py-2 border-b">
+                    <div>
+                      <p className="text-sm font-semibold">Notifications</p>
+                      <p className="text-xs text-gray-500">{unreadNotifications} unread</p>
+                    </div>
+                    {unreadNotifications > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs text-green-700"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          void markAllAsRead();
+                        }}
+                      >
+                        Mark all read
+                      </Button>
+                    )}
+                  </div>
+
+                  {latestNotifications.length > 0 ? (
+                    <ScrollArea className="max-h-80">
+                      {latestNotifications.map((notification) => (
+                        <DropdownMenuItem
+                          key={notification.id}
+                          className="cursor-pointer items-start gap-2 px-3 py-2"
+                          onSelect={(event) => {
+                            event.preventDefault();
+                            if (!notification.isRead) {
+                              void markAsRead(notification.id);
+                            }
+                          }}
+                        >
+                          <div className={`mt-1 h-2 w-2 rounded-full ${
+                            notification.isRead ? 'bg-gray-300' : 'bg-green-500'
+                          }`} />
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">{notification.title}</p>
+                            <p className="line-clamp-2 text-xs text-gray-500">{notification.message}</p>
+                          </div>
+                        </DropdownMenuItem>
+                      ))}
+                    </ScrollArea>
+                  ) : (
+                    <div className="px-3 py-6 text-center text-sm text-gray-500">No notifications yet</div>
+                  )}
+
+                  <DropdownMenuSeparator />
+                  <div className="p-2">
+                    <Button variant="outline" className="w-full" onClick={onNotificationClick}>
+                      View all notifications
+                    </Button>
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
 
             {/* Auth Buttons or User Profile */}

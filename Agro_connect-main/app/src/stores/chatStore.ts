@@ -299,9 +299,12 @@ const connectRealtime = (set: any, get: any) => {
     }
   });
 
-  socket.on('receiveNotification', (payload: Record<string, unknown>) => {
+  const applyIncomingNotification = (payload: Record<string, unknown>) => {
     useNotificationStore.getState().addNotificationFromServer(payload as any);
-  });
+  };
+
+  socket.on('receiveNotification', applyIncomingNotification);
+  socket.on('newNotification', applyIncomingNotification);
 
   socket.on('presenceSnapshot', (payload: { onlineUserIds?: string[] }) => {
     const onlineSet = new Set(payload?.onlineUserIds || []);

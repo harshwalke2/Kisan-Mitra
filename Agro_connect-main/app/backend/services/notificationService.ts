@@ -1,5 +1,9 @@
 import { Types } from 'mongoose';
-import Notification, { NotificationCategory, NotificationType } from '../models/Notification';
+import Notification, {
+  NotificationAlertType,
+  NotificationCategory,
+  NotificationType,
+} from '../models/Notification';
 import { emitNotificationToUser } from '../socket/chatSocket';
 
 type CreateNotificationInput = {
@@ -8,6 +12,8 @@ type CreateNotificationInput = {
   message: string;
   type?: NotificationType;
   category?: NotificationCategory;
+  alertType?: NotificationAlertType;
+  dedupeKey?: string;
   actionUrl?: string;
 };
 
@@ -17,6 +23,8 @@ export const createAndEmitNotification = async ({
   message,
   type = 'info',
   category = 'system',
+  alertType,
+  dedupeKey,
   actionUrl,
 }: CreateNotificationInput) => {
   if (!Types.ObjectId.isValid(recipientId)) {
@@ -29,6 +37,8 @@ export const createAndEmitNotification = async ({
     message,
     type,
     category,
+    alertType,
+    dedupeKey,
     actionUrl,
     isRead: false,
   });
@@ -39,6 +49,7 @@ export const createAndEmitNotification = async ({
     message: notification.message,
     type: notification.type,
     category: notification.category,
+    alertType: notification.alertType,
     isRead: notification.isRead,
     actionUrl: notification.actionUrl,
     createdAt: notification.createdAt,

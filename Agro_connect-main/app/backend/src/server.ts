@@ -21,6 +21,7 @@ import verificationRoutes from '../api/verificationRoutes';
 import adminRoutes from '../api/adminRoutes';
 import { connectDB } from '../config/db';
 import { initChatSocket } from '../socket/chatSocket';
+import { startNotificationScheduler } from './notificationScheduler';
 
 // Load environment variables
 dotenv.config();
@@ -176,6 +177,7 @@ app.get('/api', (req, res) => {
       getMyProfile: 'GET /api/profile/me',
       getPublicProfile: 'GET /api/users/:userId/profile',
       getNotifications: 'GET /api/notifications',
+      generateNotifications: 'POST /api/notifications/generate',
       markNotificationAsRead: 'PATCH /api/notifications/:notificationId/read',
       markAllNotificationsAsRead: 'PATCH /api/notifications/read-all',
       deleteNotification: 'DELETE /api/notifications/:notificationId',
@@ -217,6 +219,7 @@ const io = new Server(server, {
 });
 
 initChatSocket(io);
+startNotificationScheduler();
 
 const DB_RETRY_DELAY_MS = 10000;
 

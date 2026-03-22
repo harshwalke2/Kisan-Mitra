@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { param } from 'express-validator';
 import {
   deleteNotification,
+  generateNotifications,
   getNotifications,
   markAllNotificationsAsRead,
   markNotificationAsRead,
@@ -11,6 +12,7 @@ import { authMiddleware } from '../middleware/auth';
 const router = Router();
 
 router.get('/notifications', authMiddleware, getNotifications);
+router.post('/notifications/generate', authMiddleware, generateNotifications);
 
 router.patch(
   '/notifications/:notificationId/read',
