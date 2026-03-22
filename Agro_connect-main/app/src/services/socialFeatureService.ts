@@ -1,16 +1,19 @@
-import { apiRequest } from './apiClient';
+import { apiRequest, getApiBaseUrl } from './apiClient';
 import { useAuthStore } from '../stores/authStore';
 
 const getToken = (): string | null => useAuthStore.getState().token;
 
 export type BackendListingPayload = {
-  category: 'crop' | 'tool' | 'land';
-  title: string;
+  category: 'crop' | 'tool' | 'land' | 'vegetable' | 'fruit' | 'grain' | 'pulse' | 'spice' | 'other';
+  productName?: string;
+  title?: string;
   description?: string;
   location: string;
+  price?: number;
   pricePerUnit: number;
   unit: string;
   quantity?: number;
+  image?: string;
   media?: string[];
   metadata?: Record<string, unknown>;
 };
@@ -27,16 +30,32 @@ export type BackendListingResponse = {
         verifiedAt?: string;
       };
   category: 'crop' | 'tool' | 'land';
+  productName?: string;
   title: string;
   description?: string;
   location: string;
+  price?: number;
   pricePerUnit: number;
   unit: string;
   quantity?: number;
+  image?: string;
   media?: string[];
   status: 'active' | 'inactive' | 'rented' | 'sold';
+  recommendedPrice?: number;
+  isBestDeal?: boolean;
+  nearby?: boolean;
   metadata?: Record<string, unknown>;
   createdAt: string;
+};
+
+export type BackendListingListResponse = {
+  listings: BackendListingResponse[];
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 };
 
 export const createBackendListing = async (payload: BackendListingPayload) => {
@@ -45,33 +64,74 @@ export const createBackendListing = async (payload: BackendListingPayload) => {
     throw new Error('Not authenticated');
   }
 
-  return apiRequest<{ listing: { _id: string } }>('/api/listings', {
+  return apiRequest<{ listing: { _id: string } }>('/api/products', {
     method: 'POST',
     token,
     body: payload,
   });
 };
 
+export const uploadListingImage = async (file: File) => {
+  const token = getToken();
+  if (!token) {
+    throw new Error('Not authenticated');
+  }
+
+  const formData = new FormData();
+  formData.append('image', file);
+
+  const uploadResponse = await fetch(`${getApiBaseUrl()}/api/products/upload-image`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  const text = await uploadResponse.text();
+  let payload: any = {};
+  try {
+    payload = text ? JSON.parse(text) : {};
+  } catch (error) {
+    payload = { message: text };
+  }
+
+  if (!uploadResponse.ok) {
+    throw new Error(payload?.message || 'Failed to upload image');
+  }
+
+  return payload as { imageUrl: string };
+};
+
 export const fetchBackendListings = async (
   params: {
     category?: string;
     q?: string;
+    productName?: string;
     location?: string;
+    userLocation?: string;
     minPrice?: number;
     maxPrice?: number;
     minRating?: number;
     sortBy?: 'newest' | 'priceAsc' | 'priceDesc' | 'ratingDesc';
+    page?: number;
+    limit?: number;
+    status?: 'active' | 'inactive' | 'rented' | 'sold';
+    ownerId?: string;
   } = {}
 ) => {
   const query = new URLSearchParams();
   query.set('category', params.category || 'crop');
-  query.set('status', 'active');
+  query.set('status', params.status || 'active');
 
-  if (params.q) {
-    query.set('q', params.q);
+  if (params.q || params.productName) {
+    query.set('q', params.q || String(params.productName || ''));
   }
   if (params.location) {
     query.set('location', params.location);
+  }
+  if (params.userLocation) {
+    query.set('userLocation', params.userLocation);
   }
   if (typeof params.minPrice === 'number' && params.minPrice > 0) {
     query.set('minPrice', String(params.minPrice));
@@ -85,8 +145,67 @@ export const fetchBackendListings = async (
   if (params.sortBy) {
     query.set('sortBy', params.sortBy);
   }
+  if (typeof params.page === 'number' && params.page > 0) {
+    query.set('page', String(params.page));
+  }
+  if (typeof params.limit === 'number' && params.limit > 0) {
+    query.set('limit', String(params.limit));
+  }
+  if (params.ownerId) {
+    query.set('ownerId', params.ownerId);
+  }
 
-  return apiRequest<{ listings: BackendListingResponse[] }>(`/api/listings?${query.toString()}`);
+  return apiRequest<BackendListingListResponse>(`/api/products?${query.toString()}`);
+};
+
+export const fetchBackendListingById = async (id: string, userLocation?: string) => {
+  const query = new URLSearchParams();
+  if (userLocation) {
+    query.set('userLocation', userLocation);
+  }
+  const suffix = query.toString() ? `?${query.toString()}` : '';
+  return apiRequest<{ product: BackendListingResponse }>(`/api/products/${encodeURIComponent(id)}${suffix}`);
+};
+
+export const updateBackendListing = async (id: string, payload: Partial<BackendListingPayload>) => {
+  const token = getToken();
+  if (!token) {
+    throw new Error('Not authenticated');
+  }
+
+  return apiRequest<{ product: BackendListingResponse }>(`/api/products/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    token,
+    body: payload,
+  });
+};
+
+export const deleteBackendListing = async (id: string) => {
+  const token = getToken();
+  if (!token) {
+    throw new Error('Not authenticated');
+  }
+
+  return apiRequest<{ message: string }>(`/api/products/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    token,
+  });
+};
+
+export const updateBackendListingStatus = async (
+  id: string,
+  status: 'active' | 'inactive' | 'rented' | 'sold'
+) => {
+  const token = getToken();
+  if (!token) {
+    throw new Error('Not authenticated');
+  }
+
+  return apiRequest<{ listing: BackendListingResponse }>(`/api/products/${encodeURIComponent(id)}/status`, {
+    method: 'PATCH',
+    token,
+    body: { status },
+  });
 };
 
 export const createBackendBooking = async (payload: {
@@ -324,4 +443,13 @@ export const fetchLiveMarketInsights = async (params?: {
     };
     source?: string;
   }>(endpoint);
+};
+
+export const fetchMyBackendListings = async () => {
+  const token = getToken();
+  if (!token) {
+    throw new Error('Not authenticated');
+  }
+
+  return apiRequest<{ listings: BackendListingResponse[] }>('/api/listings/me', { token });
 };

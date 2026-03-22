@@ -1,8 +1,13 @@
 import { create, persist } from './zustand-mock';
 import { createAvatarUrl } from '../services/apiClient';
+import { useAuthStore } from './authStore';
 import {
+  deleteBackendListing,
+  fetchMyBackendListings,
   fetchBackendListings,
   fetchLiveMarketInsights,
+  updateBackendListing,
+  updateBackendListingStatus,
   type BackendListingResponse,
 } from '../services/socialFeatureService';
 
@@ -27,6 +32,7 @@ export interface CropListing {
   farmerAvatar?: string;
   isVerifiedSeller?: boolean;
   cropName: string;
+  category?: string;
   variety: string;
   quantity: number;
   quantityUnit: string;
@@ -43,6 +49,9 @@ export interface CropListing {
   rating: number;
   reviewCount: number;
   status: 'active' | 'sold' | 'expired';
+  recommendedPrice?: number;
+  isBestDeal?: boolean;
+  nearby?: boolean;
   createdAt: string;
 }
 
@@ -88,6 +97,12 @@ interface MarketState {
   insightsSource?: string;
   insightsStatus: 'idle' | 'loading' | 'ready' | 'error';
   insightsError?: string;
+  listingsStatus: 'idle' | 'loading' | 'ready' | 'error';
+  listingsError?: string;
+  page: number;
+  limit: number;
+  totalPages: number;
+  totalListings: number;
   userListings: CropListing[];
   wishlist: string[];
   orders: Order[];
@@ -102,10 +117,16 @@ interface MarketState {
     maxPrice?: number;
     minRating?: number;
     sortBy?: 'newest' | 'priceAsc' | 'priceDesc' | 'ratingDesc';
+    category?: string;
+    page?: number;
+    limit?: number;
   }) => Promise<void>;
+  fetchMyListings: () => Promise<void>;
+  setPage: (page: number) => void;
   addListing: (listing: Omit<CropListing, 'id' | 'createdAt'> & Partial<Pick<CropListing, 'id'>>) => void;
-  updateListing: (id: string, data: Partial<CropListing>) => void;
-  deleteListing: (id: string) => void;
+  updateListing: (id: string, data: Partial<CropListing>) => Promise<void>;
+  deleteListing: (id: string) => Promise<void>;
+  markListingAsSold: (id: string) => Promise<void>;
   addToWishlist: (id: string) => void;
   removeFromWishlist: (id: string) => void;
   addToCart: (listing: CropListing, quantity: number) => void;
@@ -275,6 +296,12 @@ export const useMarketStore = create<MarketState>(persist((set, get) => ({
   insightsSource: undefined,
   insightsStatus: 'idle',
   insightsError: undefined,
+  listingsStatus: 'idle',
+  listingsError: undefined,
+  page: 1,
+  limit: 12,
+  totalPages: 1,
+  totalListings: 0,
   userListings: [],
   wishlist: [],
   orders: [],
@@ -370,18 +397,22 @@ export const useMarketStore = create<MarketState>(persist((set, get) => ({
   },
 
   fetchListings: async (filters) => {
-    const { userListings } = get();
+    const { userListings, page: currentPage, limit: currentLimit } = get();
+    set({ listingsStatus: 'loading', listingsError: undefined });
 
     let backendListings: CropListing[] = [];
     try {
       const response = await fetchBackendListings({
-        category: 'crop',
+        category: filters?.category || 'crop',
         q: filters?.cropName,
         location: filters?.location,
         minPrice: filters?.minPrice,
         maxPrice: filters?.maxPrice,
         minRating: filters?.minRating,
         sortBy: filters?.sortBy,
+        page: filters?.page || currentPage,
+        limit: filters?.limit || currentLimit,
+        userLocation: filters?.location,
       });
       backendListings = response.listings.map((listing: BackendListingResponse) => {
         const owner = typeof listing.ownerId === 'string' ? null : listing.ownerId;
@@ -394,7 +425,8 @@ export const useMarketStore = create<MarketState>(persist((set, get) => ({
           farmerName,
           farmerAvatar: createAvatarUrl(farmerName),
           isVerifiedSeller: owner?.verificationStatus === 'verified',
-          cropName: listing.title,
+          cropName: String(listing.productName || listing.title || 'Product'),
+          category: listing.category,
           variety: String(metadata['variety'] || 'Standard'),
           quantity: Number(listing.quantity || 1),
           quantityUnit: listing.unit,
@@ -412,11 +444,24 @@ export const useMarketStore = create<MarketState>(persist((set, get) => ({
           rating: Number(metadata['rating'] || 0),
           reviewCount: Number(metadata['reviewCount'] || 0),
           status: listing.status === 'inactive' ? 'expired' : listing.status,
+          recommendedPrice: Number(listing.recommendedPrice || 0) || undefined,
+          isBestDeal: Boolean(listing.isBestDeal),
+          nearby: Boolean(listing.nearby),
           createdAt: listing.createdAt,
         } as CropListing;
       });
+
+      set({
+        page: response.pagination?.page || filters?.page || currentPage,
+        limit: response.pagination?.limit || filters?.limit || currentLimit,
+        totalPages: response.pagination?.totalPages || 1,
+        totalListings: response.pagination?.total || backendListings.length,
+      });
     } catch (error) {
-      // Fall back to local/mock listings when backend is not reachable.
+      set({
+        listingsStatus: 'error',
+        listingsError: 'Unable to sync listings from server. Showing local data.',
+      });
     }
 
     const backendIds = new Set(backendListings.map((listing) => listing.id));
@@ -471,7 +516,69 @@ export const useMarketStore = create<MarketState>(persist((set, get) => ({
       }
     }
 
-    set({ listings: filtered });
+    set({ listings: filtered, listingsStatus: 'ready' });
+  },
+
+  fetchMyListings: async () => {
+    const userId = useAuthStore.getState().user?.id;
+    if (!userId) {
+      set({ userListings: [] });
+      return;
+    }
+
+    try {
+      const response = await fetchMyBackendListings();
+
+      const mine = response.listings
+        .filter((listing) => {
+          const owner = typeof listing.ownerId === 'string' ? listing.ownerId : listing.ownerId?._id;
+          return owner === userId;
+        })
+        .map((listing) => {
+          const owner = typeof listing.ownerId === 'string' ? null : listing.ownerId;
+          const metadata = listing.metadata || {};
+          const farmerName = owner?.username || 'Farmer';
+
+          return {
+            id: listing._id,
+            farmerId: owner?._id || String(listing.ownerId),
+            farmerName,
+            farmerAvatar: createAvatarUrl(farmerName),
+            cropName: String(listing.productName || listing.title || 'Product'),
+            category: listing.category,
+            variety: String(metadata['variety'] || 'Standard'),
+            quantity: Number(listing.quantity || 1),
+            quantityUnit: listing.unit,
+            pricePerUnit: Number(listing.pricePerUnit || 0),
+            minOrderQuantity: Number(metadata['minOrderQuantity'] || 1),
+            quality: String(metadata['quality'] || 'Standard'),
+            isOrganic: Boolean(metadata['isOrganic'] || false),
+            harvestDate: listing.createdAt,
+            expiryDate: new Date(new Date(listing.createdAt).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            images: listing.media && listing.media.length > 0
+              ? listing.media
+              : ['https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=400'],
+            description: listing.description || '',
+            location: listing.location,
+            rating: Number(metadata['rating'] || 0),
+            reviewCount: Number(metadata['reviewCount'] || 0),
+            status: listing.status === 'inactive' ? 'expired' : listing.status,
+            recommendedPrice: Number(listing.recommendedPrice || 0) || undefined,
+            isBestDeal: Boolean(listing.isBestDeal),
+            nearby: Boolean(listing.nearby),
+            createdAt: listing.createdAt,
+          } as CropListing;
+        });
+
+      set({ userListings: mine });
+    } catch (error) {
+      // Keep local state if backend fetch fails.
+    }
+  },
+
+  setPage: (page) => {
+    const safePage = Math.max(1, Math.floor(page));
+    set({ page: safePage });
   },
 
   addListing: (listing) => {
@@ -487,7 +594,31 @@ export const useMarketStore = create<MarketState>(persist((set, get) => ({
     });
   },
 
-  updateListing: (id, data) => {
+  updateListing: async (id, data) => {
+    if (id.length === 24) {
+      try {
+        await updateBackendListing(id, {
+          productName: data.cropName,
+          pricePerUnit: data.pricePerUnit,
+          location: data.location,
+          quantity: data.quantity,
+          unit: data.quantityUnit,
+          description: data.description,
+          image: data.images?.[0],
+          metadata: {
+            variety: data.variety,
+            quality: data.quality,
+            minOrderQuantity: data.minOrderQuantity,
+            isOrganic: data.isOrganic,
+            rating: data.rating,
+            reviewCount: data.reviewCount,
+          },
+        });
+      } catch (error) {
+        // Apply local update for demo continuity.
+      }
+    }
+
     const { listings, userListings } = get();
     set({
       listings: listings.map(l => l.id === id ? { ...l, ...data } : l),
@@ -495,11 +626,35 @@ export const useMarketStore = create<MarketState>(persist((set, get) => ({
     });
   },
 
-  deleteListing: (id) => {
+  deleteListing: async (id) => {
+    if (id.length === 24) {
+      try {
+        await deleteBackendListing(id);
+      } catch (error) {
+        // Continue with local cleanup.
+      }
+    }
+
     const { listings, userListings } = get();
     set({
       listings: listings.filter(l => l.id !== id),
       userListings: userListings.filter(l => l.id !== id)
+    });
+  },
+
+  markListingAsSold: async (id) => {
+    if (id.length === 24) {
+      try {
+        await updateBackendListingStatus(id, 'sold');
+      } catch (error) {
+        // Continue with optimistic UI update.
+      }
+    }
+
+    const { listings, userListings } = get();
+    set({
+      listings: listings.map((listing) => (listing.id === id ? { ...listing, status: 'sold' } : listing)),
+      userListings: userListings.map((listing) => (listing.id === id ? { ...listing, status: 'sold' } : listing)),
     });
   },
 

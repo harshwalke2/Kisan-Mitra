@@ -15,7 +15,11 @@ import {
   CheckCircle,
   Package,
   Upload,
-  X
+  X,
+  Loader2,
+  Pencil,
+  Trash2,
+  Navigation,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -30,10 +34,20 @@ import { useAuthStore } from '../stores/authStore';
 import { PaymentModal } from '@/components/PaymentModal';
 import { Cart } from './Cart';
 import { useLanguageStore } from '../stores/languageStore';
-import { createBackendBooking, createBackendListing, fetchBookingAvailability } from '../services/socialFeatureService';
+import { createBackendBooking, createBackendListing, fetchBookingAvailability, uploadListingImage } from '../services/socialFeatureService';
 import { isMongoObjectId } from '../services/apiClient';
 
 const categories = ['All', 'Grains', 'Vegetables', 'Fruits', 'Pulses', 'Spices'];
+
+const toBackendCategory = (value: string): string => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'grains') return 'grain';
+  if (normalized === 'vegetables') return 'vegetable';
+  if (normalized === 'fruits') return 'fruit';
+  if (normalized === 'pulses') return 'pulse';
+  if (normalized === 'spices') return 'spice';
+  return normalized || 'other';
+};
 
 interface DirectMarketplaceProps {
   onNavigateToChat?: (ownerId: string) => void;
@@ -47,6 +61,8 @@ export function DirectMarketplace({ onNavigateToChat }: DirectMarketplaceProps) 
   const [isAddListingDialogOpen, setIsAddListingDialogOpen] = useState(false);
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
   const [isAddToCartDialogOpen, setIsAddToCartDialogOpen] = useState(false);
+  const [isProductDetailDialogOpen, setIsProductDetailDialogOpen] = useState(false);
+  const [editingListingId, setEditingListingId] = useState<string | null>(null);
   const [cartQuantity, setCartQuantity] = useState(1);
   const [selectedListing, setSelectedListing] = useState<any>(null);
   const [showOrganicOnly, setShowOrganicOnly] = useState(false);
@@ -55,7 +71,26 @@ export function DirectMarketplace({ onNavigateToChat }: DirectMarketplaceProps) 
   const [minRating, setMinRating] = useState('0');
   const [sortBy, setSortBy] = useState<'newest' | 'priceAsc' | 'priceDesc' | 'ratingDesc'>('newest');
 
-  const { listings, wishlist, cart, fetchListings, addToWishlist, removeFromWishlist, addListing, addToCart } = useMarketStore();
+  const {
+    listings,
+    userListings,
+    wishlist,
+    cart,
+    listingsStatus,
+    listingsError,
+    page,
+    totalPages,
+    fetchListings,
+    fetchMyListings,
+    setPage,
+    addToWishlist,
+    removeFromWishlist,
+    addListing,
+    addToCart,
+    updateListing,
+    deleteListing,
+    markListingAsSold,
+  } = useMarketStore();
   const { isAuthenticated, user } = useAuthStore();
 
   const handleAddToCartClick = (listing: any) => {
@@ -97,6 +132,21 @@ export function DirectMarketplace({ onNavigateToChat }: DirectMarketplaceProps) 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (isAuthenticated) {
+        void uploadListingImage(file)
+          .then((payload) => {
+            setNewListing((prev) => ({ ...prev, image: payload.imageUrl }));
+          })
+          .catch(() => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              setNewListing((prev) => ({ ...prev, image: reader.result as string }));
+            };
+            reader.readAsDataURL(file);
+          });
+        return;
+      }
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setNewListing({ ...newListing, image: reader.result as string });
@@ -111,16 +161,53 @@ export function DirectMarketplace({ onNavigateToChat }: DirectMarketplaceProps) 
       return;
     }
 
+    if (editingListingId) {
+      await updateListing(editingListingId, {
+        cropName: newListing.cropName,
+        category: toBackendCategory(newListing.category),
+        variety: newListing.variety,
+        pricePerUnit: Number(newListing.pricePerUnit || 0),
+        quantityUnit: newListing.quantityUnit,
+        quantity: Number(newListing.quantity || 0),
+        minOrderQuantity: Number(newListing.minOrderQuantity || 1),
+        location: newListing.location,
+        isOrganic: newListing.isOrganic,
+        description: newListing.description,
+        images: newListing.image ? [newListing.image] : undefined,
+      });
+
+      setEditingListingId(null);
+      setIsAddListingDialogOpen(false);
+      setNewListing({
+        cropName: '',
+        variety: '',
+        category: '',
+        pricePerUnit: undefined,
+        quantityUnit: 'kg',
+        quantity: undefined,
+        minOrderQuantity: undefined,
+        location: '',
+        isOrganic: false,
+        description: '',
+        image: null,
+      });
+      alert('Listing updated successfully!');
+      return;
+    }
+
     let backendListingId: string | undefined;
     try {
       const response = await createBackendListing({
-        category: 'crop',
-        title: `${newListing.cropName}${newListing.variety ? ` - ${newListing.variety}` : ''}`,
+        category: toBackendCategory(newListing.category) as any,
+        productName: newListing.cropName,
+        title: newListing.cropName,
         description: newListing.description,
         location: newListing.location || 'India',
+        price: newListing.pricePerUnit,
         pricePerUnit: newListing.pricePerUnit,
         unit: newListing.quantityUnit,
         quantity: newListing.quantity,
+        image: newListing.image || undefined,
         media: newListing.image ? [newListing.image] : [],
         metadata: {
           variety: newListing.variety,
@@ -140,6 +227,7 @@ export function DirectMarketplace({ onNavigateToChat }: DirectMarketplaceProps) 
       farmerName: user?.name || 'Guest',
       farmerAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=rajesh',
       cropName: newListing.cropName,
+      category: toBackendCategory(newListing.category),
       variety: newListing.variety,
       quantity: newListing.quantity,
       quantityUnit: newListing.quantityUnit,
@@ -214,15 +302,20 @@ export function DirectMarketplace({ onNavigateToChat }: DirectMarketplaceProps) 
       maxPrice: Number(maxPrice || 0),
       minRating: Number(minRating || 0),
       sortBy,
+      category: selectedCategory === 'All' ? undefined : toBackendCategory(selectedCategory),
+      page,
+      limit: 12,
     });
   }, [
     fetchListings,
     searchQuery,
+    selectedCategory,
     showOrganicOnly,
     minPrice,
     maxPrice,
     minRating,
     sortBy,
+    page,
   ]);
 
   useEffect(() => {
@@ -241,8 +334,8 @@ export function DirectMarketplace({ onNavigateToChat }: DirectMarketplaceProps) 
     });
 
     const timer = setInterval(() => {
-      void fetchListings();
-    }, 3000);
+      void fetchListings({ page, limit: 12 });
+    }, 30000);
 
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
@@ -254,6 +347,9 @@ export function DirectMarketplace({ onNavigateToChat }: DirectMarketplaceProps) 
           maxPrice: Number(maxPrice || 0),
           minRating: Number(minRating || 0),
           sortBy,
+          category: selectedCategory === 'All' ? undefined : toBackendCategory(selectedCategory),
+          page,
+          limit: 12,
         });
       }
     };
@@ -267,23 +363,30 @@ export function DirectMarketplace({ onNavigateToChat }: DirectMarketplaceProps) 
         maxPrice: Number(maxPrice || 0),
         minRating: Number(minRating || 0),
         sortBy,
+        category: selectedCategory === 'All' ? undefined : toBackendCategory(selectedCategory),
+        page,
+        limit: 12,
       });
     };
 
     document.addEventListener('visibilitychange', handleVisibility);
     window.addEventListener('focus', handleFocus);
 
+    void fetchMyListings();
+
     return () => {
       clearInterval(timer);
       document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [activeTab, fetchListings, searchQuery, showOrganicOnly, minPrice, maxPrice, minRating, sortBy]);
+  }, [activeTab, fetchListings, fetchMyListings, searchQuery, selectedCategory, showOrganicOnly, minPrice, maxPrice, minRating, sortBy, page]);
 
   const filteredListings = listings.filter(listing => {
     const matchesSearch = listing.cropName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       listing.location.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'All' || listing.cropName.includes(selectedCategory);
+    const matchesCategory =
+      selectedCategory === 'All'
+      || String(listing.category || '').toLowerCase() === selectedCategory.toLowerCase();
     const matchesOrganic = !showOrganicOnly || listing.isOrganic;
     return matchesSearch && matchesCategory && matchesOrganic;
   });
@@ -371,6 +474,12 @@ export function DirectMarketplace({ onNavigateToChat }: DirectMarketplaceProps) 
                 </Card>
               ))}
             </div>
+          </div>
+        )}
+
+        {listingsStatus === 'error' && listingsError && (
+          <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+            {listingsError}
           </div>
         )}
 
@@ -488,10 +597,17 @@ export function DirectMarketplace({ onNavigateToChat }: DirectMarketplaceProps) 
             </div>
 
             {/* Listings Grid */}
+            {listingsStatus === 'loading' && (
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading products...
+              </div>
+            )}
+
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filteredListings.map((listing) => (
                 <Card key={listing.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                  <div className="relative h-48">
+                  <div className="relative h-48 cursor-pointer" onClick={() => { setSelectedListing(listing); setIsProductDetailDialogOpen(true); }}>
                     <img
                       src={listing.images[0]}
                       alt={listing.cropName}
@@ -503,6 +619,11 @@ export function DirectMarketplace({ onNavigateToChat }: DirectMarketplaceProps) 
                           <Leaf className="w-3 h-3" />
                           Organic
                         </Badge>
+                      </div>
+                    )}
+                    {listing.isBestDeal && (
+                      <div className="absolute bottom-3 left-3">
+                        <Badge className="bg-emerald-600 text-white">Best Deal</Badge>
                       </div>
                     )}
                     <div className="absolute top-3 right-3">
@@ -531,6 +652,11 @@ export function DirectMarketplace({ onNavigateToChat }: DirectMarketplaceProps) 
                       <MapPin className="w-4 h-4" />
                       {listing.location}
                       {listing.distance && <span className="text-gray-400">({listing.distance} km)</span>}
+                      {listing.nearby && (
+                        <Badge variant="outline" className="ml-auto flex items-center gap-1">
+                          <Navigation className="h-3 w-3" /> Nearby
+                        </Badge>
+                      )}
                     </div>
 
                     <div className="flex items-baseline gap-1 mb-3">
@@ -538,6 +664,12 @@ export function DirectMarketplace({ onNavigateToChat }: DirectMarketplaceProps) 
                       <span className="text-xl font-bold text-green-600">{listing.pricePerUnit.toLocaleString()}</span>
                       <span className="text-gray-500">per {listing.quantityUnit}</span>
                     </div>
+
+                    {listing.recommendedPrice && (
+                      <p className="mb-2 text-xs text-gray-500">
+                        Recommended: ₹{listing.recommendedPrice.toFixed(0)}/{listing.quantityUnit}
+                      </p>
+                    )}
 
                     <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
                       <span>Min Order: {listing.minOrderQuantity} {listing.quantityUnit}</span>
@@ -590,6 +722,26 @@ export function DirectMarketplace({ onNavigateToChat }: DirectMarketplaceProps) 
                 </Card>
               ))}
             </div>
+
+            <div className="mt-4 flex items-center justify-center gap-3">
+              <Button
+                variant="outline"
+                disabled={page <= 1}
+                onClick={() => setPage(page - 1)}
+              >
+                Previous
+              </Button>
+              <span className="text-sm text-gray-500">
+                Page {page} of {Math.max(1, totalPages)}
+              </span>
+              <Button
+                variant="outline"
+                disabled={page >= totalPages}
+                onClick={() => setPage(page + 1)}
+              >
+                Next
+              </Button>
+            </div>
           </TabsContent>
 
           {/* My Listings Tab */}
@@ -601,7 +753,7 @@ export function DirectMarketplace({ onNavigateToChat }: DirectMarketplaceProps) 
               </div>
             ) : (
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {listings.filter(l => l.farmerId === user?.id).map((listing) => (
+                {userListings.map((listing) => (
                   <Card key={listing.id} className="overflow-hidden">
                     <div className="relative h-48">
                       <img
@@ -623,14 +775,49 @@ export function DirectMarketplace({ onNavigateToChat }: DirectMarketplaceProps) 
                       <h3 className="font-semibold text-lg">{listing.cropName}</h3>
                       <p className="text-green-600 font-semibold">₹{listing.pricePerUnit}/{listing.quantityUnit}</p>
                       <p className="text-sm text-gray-500">{listing.quantity} {listing.quantityUnit} remaining</p>
-                      <div className="flex gap-2 mt-4">
-                        <Button variant="outline" className="flex-1">Edit</Button>
-                        <Button variant="destructive" className="flex-1">Delete</Button>
+                      <div className="grid grid-cols-2 gap-2 mt-4">
+                        <Button
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => {
+                            setEditingListingId(listing.id);
+                            setNewListing({
+                              cropName: listing.cropName,
+                              variety: listing.variety,
+                              category: listing.category || '',
+                              pricePerUnit: listing.pricePerUnit,
+                              quantityUnit: listing.quantityUnit,
+                              quantity: listing.quantity,
+                              minOrderQuantity: listing.minOrderQuantity,
+                              location: listing.location,
+                              isOrganic: listing.isOrganic,
+                              description: listing.description,
+                              image: listing.images[0] || null,
+                            });
+                            setIsAddListingDialogOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-4 w-4 mr-2" />Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => void markListingAsSold(listing.id)}
+                        >
+                          Mark Sold
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          className="col-span-2"
+                          onClick={() => void deleteListing(listing.id)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />Delete
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
                 ))}
-                {listings.filter(l => l.farmerId === user?.id).length === 0 && (
+                {userListings.length === 0 && (
                   <div className="col-span-full text-center py-12">
                     <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-gray-600">No listings yet</h3>
@@ -815,9 +1002,48 @@ export function DirectMarketplace({ onNavigateToChat }: DirectMarketplaceProps) 
                 onClick={handleAddListing}
               >
                 <CheckCircle className="w-4 h-4 mr-2" />
-                {t('market.createListingBtn')}
+                {editingListingId ? 'Update Listing' : t('market.createListingBtn')}
               </Button>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isProductDetailDialogOpen} onOpenChange={setIsProductDetailDialogOpen}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>{selectedListing?.cropName || 'Product details'}</DialogTitle>
+            </DialogHeader>
+            {selectedListing && (
+              <div className="grid gap-4 md:grid-cols-2">
+                <img
+                  src={selectedListing.images?.[0]}
+                  alt={selectedListing.cropName}
+                  className="h-64 w-full rounded-lg object-cover"
+                />
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-500">Category: {selectedListing.category || 'other'}</p>
+                  <p className="text-2xl font-bold text-green-600">₹{selectedListing.pricePerUnit}/{selectedListing.quantityUnit}</p>
+                  {selectedListing.recommendedPrice && (
+                    <p className="text-sm text-gray-500">Recommended price: ₹{Number(selectedListing.recommendedPrice).toFixed(0)}</p>
+                  )}
+                  <p className="text-sm text-gray-600">{selectedListing.description || 'No description provided.'}</p>
+                  <p className="text-sm">Quantity: {selectedListing.quantity} {selectedListing.quantityUnit}</p>
+                  <p className="text-sm">Location: {selectedListing.location}</p>
+                  <p className="text-sm">Seller: {selectedListing.farmerName}</p>
+                  <div className="pt-2">
+                    <Button
+                      className="w-full bg-gradient-to-r from-green-600 to-emerald-600"
+                      onClick={() => {
+                        setIsProductDetailDialogOpen(false);
+                        handleContact(selectedListing);
+                      }}
+                    >
+                      <MessageCircle className="mr-2 h-4 w-4" /> Contact Seller
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
 
