@@ -45,6 +45,7 @@ export function AuthModal({ isOpen, onClose, mode, onModeChange }: AuthModalProp
   const [forgotPreviewUrl, setForgotPreviewUrl] = useState('');
   const [forgotDevResetLink, setForgotDevResetLink] = useState('');
   const [forgotError, setForgotError] = useState('');
+  const [authError, setAuthError] = useState('');
 
   // Login form state
   const [loginData, setLoginData] = useState({
@@ -69,6 +70,7 @@ export function AuthModal({ isOpen, onClose, mode, onModeChange }: AuthModalProp
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAuthError('');
     setIsLoading(true);
     
     const success = await login(loginData.email, loginData.password);
@@ -77,15 +79,16 @@ export function AuthModal({ isOpen, onClose, mode, onModeChange }: AuthModalProp
     if (success) {
       onClose();
     } else {
-      alert('Invalid email or password. Please try again.');
+      setAuthError('Invalid email or password. Please try again.');
     }
   };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAuthError('');
     setIsLoading(true);
     
-    const success = await register({
+    const result = await register({
       name: registerData.name,
       email: registerData.email,
       password: registerData.password,
@@ -98,8 +101,10 @@ export function AuthModal({ isOpen, onClose, mode, onModeChange }: AuthModalProp
     });
     
     setIsLoading(false);
-    if (success) {
+    if (result.success) {
       onClose();
+    } else {
+      setAuthError(result.error || 'Unable to create account. Please check your details.');
     }
   };
 
@@ -313,6 +318,7 @@ export function AuthModal({ isOpen, onClose, mode, onModeChange }: AuthModalProp
                   'Login'
                 )}
               </Button>
+              {authError && <p className="text-sm text-red-600">{authError}</p>}
             </form>
           </TabsContent>
 
@@ -455,6 +461,7 @@ export function AuthModal({ isOpen, onClose, mode, onModeChange }: AuthModalProp
                   'Create Account'
                 )}
               </Button>
+              {authError && <p className="text-sm text-red-600">{authError}</p>}
             </form>
           </TabsContent>
         </Tabs>

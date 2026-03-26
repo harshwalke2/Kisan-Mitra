@@ -40,7 +40,7 @@ interface AuthState {
   isLoading: boolean;
   allUsers: User[];
   login: (email: string, password: string) => Promise<boolean>;
-  register: (userData: RegisterData) => Promise<boolean>;
+  register: (userData: RegisterData) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   checkAuth: () => void;
   updateProfile: (data: Partial<User>) => void;
@@ -137,6 +137,24 @@ const normalizeUser = (user: AuthResponse['user'], previous?: User | null): User
   createdAt: user.createdAt || previous?.createdAt || new Date().toISOString(),
 });
 
+const formatApiError = (error: unknown, fallback: string): string => {
+  if (!(error instanceof ApiError)) {
+    return fallback;
+  }
+
+  const detailObject = error.details as
+    | {
+        errors?: Array<{ field?: string; message?: string }>;
+      }
+    | undefined;
+
+  if (detailObject?.errors?.length) {
+    return detailObject.errors.map((item) => item.message).filter(Boolean).join(', ');
+  }
+
+  return error.message || fallback;
+};
+
 export const useAuthStore = create<AuthState>(
   persist(
     (set: any, get: any) => ({
@@ -170,45 +188,55 @@ export const useAuthStore = create<AuthState>(
       register: async (userData: RegisterData) => {
         set({ isLoading: true });
         try {
+          const username = userData.name.trim();
+          const location = userData.location?.trim();
+          const farmName = userData.farmName?.trim();
+          const phone = userData.phone?.trim();
+
+          const payload: Record<string, unknown> = {
+            username,
+            email: userData.email.trim(),
+            password: userData.password,
+            preferredLanguage: userData.preferredLanguage || 'en',
+            role: userData.role,
+          };
+
+          if (phone) payload.phone = phone;
+          if (location) payload.location = location;
+          if (farmName) payload.farmName = farmName;
+          if (typeof userData.farmSize === 'number' && Number.isFinite(userData.farmSize) && userData.farmSize > 0) {
+            payload.farmSize = userData.farmSize;
+          }
+
           const data = await apiRequest<AuthResponse>('/api/auth/register', {
             method: 'POST',
-            body: {
-              username: userData.name,
-              email: userData.email,
-              password: userData.password,
-              phone: userData.phone,
-              location: userData.location,
-              farmName: userData.farmName,
-              farmSize: userData.farmSize,
-              preferredLanguage: userData.preferredLanguage || 'en',
-              role: userData.role,
-            },
+            body: payload,
           });
 
           const normalizedUser = normalizeUser(data.user, {
             id: data.user._id,
-            name: userData.name,
-            username: userData.name,
-            email: userData.email,
+            name: username,
+            username,
+            email: userData.email.trim(),
             role: userData.role,
-            phone: userData.phone,
-            location: userData.location
+            phone,
+            location: location
               ? {
                   latitude: 20.5937,
                   longitude: 78.9629,
-                  address: userData.location,
+                  address: location,
                 }
               : undefined,
-            farmDetails: userData.farmName
+            farmDetails: farmName
               ? {
-                  farmName: userData.farmName,
+                  farmName,
                   farmSize: userData.farmSize || 0,
                   crops: [],
                   soilType: 'Unknown',
                 }
               : undefined,
             preferredLanguage: userData.preferredLanguage || 'en',
-            avatar: createAvatarUrl(userData.name),
+            avatar: createAvatarUrl(username),
             followersCount: data.user.followersCount || 0,
             followingCount: data.user.followingCount || 0,
             createdAt: data.user.createdAt || new Date().toISOString(),
@@ -221,10 +249,13 @@ export const useAuthStore = create<AuthState>(
             isLoading: false,
           });
 
-          return true;
+          return { success: true };
         } catch (error) {
           set({ isLoading: false });
-          return false;
+          return {
+            success: false,
+            error: formatApiError(error, 'Registration failed. Please check your details and try again.'),
+          };
         }
       },
 
