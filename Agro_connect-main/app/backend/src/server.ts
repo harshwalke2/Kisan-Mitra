@@ -21,6 +21,7 @@ import reviewRoutes from '../api/reviewRoutes';
 import verificationRoutes from '../api/verificationRoutes';
 import adminRoutes from '../api/adminRoutes';
 import schemeRoutes from '../api/schemeRoutes';
+import whatsappRoutes from '../api/whatsappRoutes';
 import { connectDB } from '../config/db';
 import { initChatSocket } from '../socket/chatSocket';
 import { seedSchemesIfEmpty } from '../services/schemeSeedService';
@@ -143,6 +144,7 @@ app.use('/api', notificationRoutes);
 app.use('/api', verificationRoutes);
 app.use('/api', adminRoutes);
 app.use('/api', schemeRoutes);
+app.use('/api', whatsappRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -200,6 +202,8 @@ app.get('/api', (req, res) => {
       filterSchemes: 'GET /api/schemes/filter?state=&category=&keyword=',
       createScheme: 'POST /api/schemes',
       syncSchemes: 'POST /api/schemes/sync',
+      whatsappWebhook: 'POST /api/whatsapp/webhook',
+      whatsappHealth: 'GET /api/whatsapp/health',
       verificationStatus: 'GET /api/verification/status',
       submitVerification: 'POST /api/verification/submit',
       reviewVerification: 'POST /api/verification/review',
