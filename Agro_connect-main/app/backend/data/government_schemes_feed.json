@@ -1,0 +1,224 @@
+{
+  "schemes": [
+    {
+      "name": "PM-KISAN (Pradhan Mantri Kisan Samman Nidhi)",
+      "state": "All India",
+      "category": "Income Support",
+      "description": "Direct income support to eligible farmer families in three annual installments.",
+      "eligibility": "Land-holding farmer families with valid Aadhaar and bank account.",
+      "documents": ["Aadhaar Card", "Land Records", "Bank Passbook"],
+      "benefits": "Rs. 6,000 annual assistance via DBT.",
+      "application_link": "https://pmkisan.gov.in/"
+    },
+    {
+      "name": "Pradhan Mantri Fasal Bima Yojana (PMFBY)",
+      "state": "All India",
+      "category": "Crop Insurance",
+      "description": "Crop insurance protection for notified crops against yield losses.",
+      "eligibility": "Farmers growing notified crops in notified areas.",
+      "documents": ["Aadhaar Card", "Bank Details", "Sowing Proof"],
+      "benefits": "Low premium insurance and claim support.",
+      "application_link": "https://pmfby.gov.in/"
+    },
+    {
+      "name": "Soil Health Card Scheme",
+      "state": "All India",
+      "category": "Soil Health",
+      "description": "Soil testing and nutrient recommendations for better productivity.",
+      "eligibility": "All farmers.",
+      "documents": ["Identity Proof", "Land Details"],
+      "benefits": "Balanced fertilizer usage and lower input costs.",
+      "application_link": "https://soilhealth.dac.gov.in/"
+    },
+    {
+      "name": "Kisan Credit Card (KCC)",
+      "state": "All India",
+      "category": "Credit Support",
+      "description": "Short-term affordable credit for cultivation and allied activities.",
+      "eligibility": "Farmers, tenant farmers, SHGs, and allied sector farmers.",
+      "documents": ["Identity Proof", "Land Records", "Photos"],
+      "benefits": "Timely low-interest credit and subvention on prompt repayment.",
+      "application_link": "https://www.myscheme.gov.in/schemes/kcc"
+    },
+    {
+      "name": "Pradhan Mantri Krishi Sinchai Yojana (PMKSY)",
+      "state": "All India",
+      "category": "Irrigation",
+      "description": "Irrigation efficiency and micro-irrigation promotion.",
+      "eligibility": "Eligible cultivable landholders as per state norms.",
+      "documents": ["Aadhaar Card", "Land Proof", "Bank Details"],
+      "benefits": "Subsidy for irrigation infrastructure.",
+      "application_link": "https://pmksy.gov.in/"
+    },
+    {
+      "name": "Paramparagat Krishi Vikas Yojana (PKVY)",
+      "state": "All India",
+      "category": "Organic Farming",
+      "description": "Cluster-based organic farming and certification support.",
+      "eligibility": "Farmer groups willing to adopt organic methods.",
+      "documents": ["Identity Proof", "Land Records", "Group Details"],
+      "benefits": "Support for inputs, certification, and value chain.",
+      "application_link": "https://pgsindia-ncof.gov.in/"
+    },
+    {
+      "name": "National Mission on Natural Farming (NMNF)",
+      "state": "All India",
+      "category": "Sustainable Farming",
+      "description": "Promotion of chemical-free natural farming practices.",
+      "eligibility": "Farmers onboarded via state agriculture departments.",
+      "documents": ["Farmer Registration", "Identity Proof"],
+      "benefits": "Capacity building and demonstration support.",
+      "application_link": "https://agricoop.nic.in/"
+    },
+    {
+      "name": "Rashtriya Krishi Vikas Yojana (RKVY-RAFTAAR)",
+      "state": "All India",
+      "category": "Agriculture Development",
+      "description": "Supports agriculture innovation, infrastructure, and startups.",
+      "eligibility": "Approved project beneficiaries under state plans.",
+      "documents": ["Project Proposal", "Identity Proof", "Bank Details"],
+      "benefits": "Project grants and innovation support.",
+      "application_link": "https://rkvy.da.gov.in/"
+    },
+    {
+      "name": "Sub-Mission on Agricultural Mechanization (SMAM)",
+      "state": "All India",
+      "category": "Farm Mechanization",
+      "description": "Subsidized agricultural machinery and custom hiring support.",
+      "eligibility": "Farmers, FPOs, and cooperatives as per state norms.",
+      "documents": ["Identity Proof", "Land Records", "Equipment Quotation"],
+      "benefits": "Capital subsidy for farm equipment.",
+      "application_link": "https://agrimachinery.nic.in/"
+    },
+    {
+      "name": "e-NAM (National Agriculture Market)",
+      "state": "All India",
+      "category": "Market Linkage",
+      "description": "Unified digital agricultural market for better price discovery.",
+      "eligibility": "Registered farmers via participating mandis.",
+      "documents": ["Identity Proof", "Bank Details", "Farmer Registration"],
+      "benefits": "Wider market access and transparent bidding.",
+      "application_link": "https://www.enam.gov.in/"
+    },
+    {
+      "name": "Agriculture Infrastructure Fund (AIF)",
+      "state": "All India",
+      "category": "Infrastructure Finance",
+      "description": "Medium-long term debt financing for post-harvest management infrastructure.",
+      "eligibility": "Farmers, FPOs, PACS, cooperatives, startups and agri-entrepreneurs.",
+      "documents": ["Project Report", "Identity Proof", "Bank Details"],
+      "benefits": "Interest subvention and credit guarantee support.",
+      "application_link": "https://agriinfra.dac.gov.in/"
+    },
+    {
+      "name": "PM Kisan Maandhan Yojana",
+      "state": "All India",
+      "category": "Pension",
+      "description": "Voluntary pension scheme for small and marginal farmers.",
+      "eligibility": "Farmers aged 18-40 years with up to 2 hectares land.",
+      "documents": ["Aadhaar Card", "Bank Passbook", "Land Records"],
+      "benefits": "Assured monthly pension at old age.",
+      "application_link": "https://maandhan.in/"
+    },
+    {
+      "name": "PM Formalisation of Micro Food Processing Enterprises (PMFME)",
+      "state": "All India",
+      "category": "Food Processing",
+      "description": "Support for micro food processing units and value addition.",
+      "eligibility": "Individual micro enterprises, SHGs, FPOs, cooperatives.",
+      "documents": ["Identity Proof", "Business Details", "Bank Details"],
+      "benefits": "Credit-linked subsidy and training.",
+      "application_link": "https://pmfme.mofpi.gov.in/"
+    },
+    {
+      "name": "Rythu Bandhu Scheme",
+      "state": "Telangana",
+      "category": "Income Support",
+      "description": "Per-acre investment support for each crop season.",
+      "eligibility": "Eligible land-owning farmers in Telangana.",
+      "documents": ["Pattadar Passbook", "Aadhaar Card", "Bank Details"],
+      "benefits": "Seasonal DBT support for farm input expenses.",
+      "application_link": "https://rythubandhu.telangana.gov.in/"
+    },
+    {
+      "name": "KALIA Scheme",
+      "state": "Odisha",
+      "category": "Livelihood Support",
+      "description": "Support for small and marginal farmers, sharecroppers, and landless laborers.",
+      "eligibility": "Eligible Odisha beneficiaries under state criteria.",
+      "documents": ["Aadhaar Card", "Bank Account", "Income Certificate"],
+      "benefits": "Cultivation support, livelihood aid, and insurance support.",
+      "application_link": "https://kalia.odisha.gov.in/"
+    },
+    {
+      "name": "YSR Rythu Bharosa",
+      "state": "Andhra Pradesh",
+      "category": "Income Support",
+      "description": "State support scheme for investment and livelihood assistance.",
+      "eligibility": "Eligible farmers and tenant cultivators in Andhra Pradesh.",
+      "documents": ["Aadhaar Card", "Cultivation Proof", "Bank Details"],
+      "benefits": "Direct annual financial support.",
+      "application_link": "https://ysrrythubharosa.ap.gov.in/"
+    },
+    {
+      "name": "Namo Shetkari Mahasanman Nidhi Yojana",
+      "state": "Maharashtra",
+      "category": "Income Support",
+      "description": "State top-up support for PM-KISAN beneficiaries.",
+      "eligibility": "Eligible PM-KISAN beneficiaries in Maharashtra.",
+      "documents": ["PM-KISAN Registration", "Aadhaar Card", "Bank Details"],
+      "benefits": "Additional direct financial support.",
+      "application_link": "https://maharashtra.gov.in/"
+    },
+    {
+      "name": "Bhavantar Bhugtan Yojana",
+      "state": "Madhya Pradesh",
+      "category": "Price Deficiency Payment",
+      "description": "Compensation for difference between market and benchmark support price.",
+      "eligibility": "Registered farmers selling notified crops in designated mandis.",
+      "documents": ["Farmer Registration", "Sale Receipt", "Bank Details"],
+      "benefits": "Direct price deficiency compensation.",
+      "application_link": "https://mpkrishi.mp.gov.in/"
+    },
+    {
+      "name": "Mukhyamantri Krishi Ashirwad Yojana",
+      "state": "Jharkhand",
+      "category": "Income Support",
+      "description": "Per-acre support to reduce seasonal farm input burden.",
+      "eligibility": "Eligible landholding farmers in Jharkhand.",
+      "documents": ["Land Records", "Identity Proof", "Bank Details"],
+      "benefits": "Per-acre direct transfer support.",
+      "application_link": "https://mmkay.jharkhand.gov.in/"
+    },
+    {
+      "name": "Krushak Assistance for Livelihood and Income Augmentation (KALIA top-up)",
+      "state": "Odisha",
+      "category": "Income Support",
+      "description": "Supplementary state support for livelihood resilience among farmers.",
+      "eligibility": "Eligible farmer households under updated state list.",
+      "documents": ["Identity Proof", "Bank Details", "Land or Cultivation Proof"],
+      "benefits": "Financial and livelihood support.",
+      "application_link": "https://kalia.odisha.gov.in/"
+    },
+    {
+      "name": "Mukhyamantri Kisan Kalyan Yojana",
+      "state": "Madhya Pradesh",
+      "category": "Income Support",
+      "description": "State income support for registered farmers in addition to central aid.",
+      "eligibility": "Eligible farmer beneficiaries under state registry.",
+      "documents": ["Aadhaar Card", "Bank Details", "Land Records"],
+      "benefits": "Annual direct benefit transfer support.",
+      "application_link": "https://mpkrishi.mp.gov.in/"
+    },
+    {
+      "name": "Gujarat Kisan Suryoday Yojana",
+      "state": "Gujarat",
+      "category": "Power Access",
+      "description": "Daytime quality power supply support for agricultural consumers.",
+      "eligibility": "Eligible agricultural electricity consumers in notified feeders.",
+      "documents": ["Electricity Consumer Number", "Identity Proof", "Land Proof"],
+      "benefits": "Reliable daytime electricity for irrigation operations.",
+      "application_link": "https://gujaratindia.gov.in/"
+    }
+  ]
+}

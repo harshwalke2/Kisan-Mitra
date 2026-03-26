@@ -1,11 +1,13 @@
 import mongoose from 'mongoose';
 
 export const connectDB = async (): Promise<void> => {
-  const mongoUri = process.env.MONGODB_URI;
+  const rawMongoUri = process.env.MONGODB_URI;
 
-  if (!mongoUri) {
+  if (!rawMongoUri) {
     throw new Error('MONGODB_URI is not configured in environment variables');
   }
+
+  const mongoUri = rawMongoUri.trim().replace(/^['\"]|['\"]$/g, '');
 
   await mongoose.connect(mongoUri);
   console.log('[db] MongoDB connected');

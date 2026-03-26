@@ -20,9 +20,12 @@ import profileRoutes from '../api/profileRoutes';
 import reviewRoutes from '../api/reviewRoutes';
 import verificationRoutes from '../api/verificationRoutes';
 import adminRoutes from '../api/adminRoutes';
+import schemeRoutes from '../api/schemeRoutes';
 import { connectDB } from '../config/db';
 import { initChatSocket } from '../socket/chatSocket';
+import { seedSchemesIfEmpty } from '../services/schemeSeedService';
 import { startNotificationScheduler } from './notificationScheduler';
+import { startSchemeSyncScheduler } from './schemeSyncScheduler';
 
 // Load environment variables
 dotenv.config();
@@ -33,7 +36,13 @@ const server = http.createServer(app);
 // Required on Render/other reverse proxies so rate limiting keys by real client IP.
 app.set('trust proxy', 1);
 
-const allowedOrigins = (process.env.FRONTEND_URLS || process.env.FRONTEND_URL || 'http://localhost:5173,http://localhost:5188')
+// Hide framework fingerprint from attackers.
+app.disable('x-powered-by');
+
+const defaultFrontendOrigins =
+  process.env.NODE_ENV === 'development' ? 'http://localhost:5173,http://localhost:5188' : '';
+
+const allowedOrigins = (process.env.FRONTEND_URLS || process.env.FRONTEND_URL || defaultFrontendOrigins)
   .split(',')
   .map((origin) => origin.replace(/\s+/g, '').trim())
   .filter(Boolean);
@@ -42,8 +51,8 @@ const normalizeOrigin = (value: string): string => value.replace(/\s+/g, '').tri
 
 const allowedOriginSet = new Set(allowedOrigins.map(normalizeOrigin));
 
-const allowPreviewDomains = String(process.env.ALLOW_PREVIEW_ORIGINS || 'true').toLowerCase() === 'true';
-const corsAllowAll = String(process.env.CORS_ALLOW_ALL || 'true').toLowerCase() === 'true';
+const allowPreviewDomains = String(process.env.ALLOW_PREVIEW_ORIGINS || 'false').toLowerCase() === 'true';
+const corsAllowAll = String(process.env.CORS_ALLOW_ALL || 'false').toLowerCase() === 'true';
 
 const isPreviewOrigin = (origin: string): boolean => {
   const normalized = normalizeOrigin(origin);
@@ -66,8 +75,9 @@ const isAllowedOrigin = (origin?: string): boolean => {
   }
 
   const isDevLocalOrigin =
-    Boolean(origin) &&
-    /^https?:\/\/(localhost|127\.0\.0\.1):(\d+)$/i.test(String(origin));
+    process.env.NODE_ENV === 'development'
+    && Boolean(origin)
+    && /^https?:\/\/(localhost|127\.0\.0\.1):(\d+)$/i.test(String(origin));
 
   if (isDevLocalOrigin) {
     return true;
@@ -84,7 +94,8 @@ const isAllowedOrigin = (origin?: string): boolean => {
 
 // Security middleware
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: 'cross-origin' }
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  hsts: process.env.NODE_ENV === 'production' ? undefined : false,
 }));
 
 app.use(cors({
@@ -131,6 +142,7 @@ app.use('/api', profileRoutes);
 app.use('/api', notificationRoutes);
 app.use('/api', verificationRoutes);
 app.use('/api', adminRoutes);
+app.use('/api', schemeRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -183,6 +195,11 @@ app.get('/api', (req, res) => {
       markNotificationAsRead: 'PATCH /api/notifications/:notificationId/read',
       markAllNotificationsAsRead: 'PATCH /api/notifications/read-all',
       deleteNotification: 'DELETE /api/notifications/:notificationId',
+      getSchemes: 'GET /api/schemes',
+      getSchemeById: 'GET /api/schemes/:id',
+      filterSchemes: 'GET /api/schemes/filter?state=&category=&keyword=',
+      createScheme: 'POST /api/schemes',
+      syncSchemes: 'POST /api/schemes/sync',
       verificationStatus: 'GET /api/verification/status',
       submitVerification: 'POST /api/verification/submit',
       reviewVerification: 'POST /api/verification/review',
@@ -221,14 +238,26 @@ const io = new Server(server, {
 });
 
 initChatSocket(io);
-startNotificationScheduler();
 
 const DB_RETRY_DELAY_MS = 10000;
+let schedulerStarted = false;
+let schemeSyncSchedulerStarted = false;
 
 const connectDBWithRetry = async (): Promise<void> => {
   try {
     await connectDB();
     console.log('[db] Connection established');
+    await seedSchemesIfEmpty();
+
+    if (!schedulerStarted) {
+      startNotificationScheduler();
+      schedulerStarted = true;
+    }
+
+    if (!schemeSyncSchedulerStarted) {
+      startSchemeSyncScheduler();
+      schemeSyncSchedulerStarted = true;
+    }
   } catch (error) {
     console.error('[db] Initial connection failed. Retrying in 10s...', error);
     setTimeout(() => {
@@ -241,6 +270,7 @@ server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Allowed frontend origins: ${allowedOrigins.join(', ')}`);
+  console.log(`CORS allow all: ${corsAllowAll}`);
 });
 
 void connectDBWithRetry();
