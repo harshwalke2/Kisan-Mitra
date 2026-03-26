@@ -131,10 +131,12 @@ export function AIChatbot() {
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
   }, [messages]);
 
   const getBotResponse = (userMessage: string): string => {
@@ -260,7 +262,7 @@ export function AIChatbot() {
       {!isMinimized && (
         <>
           {/* Messages */}
-          <div className="h-80 overflow-y-auto p-4 space-y-4">
+          <div ref={messagesContainerRef} className="h-80 overflow-y-auto p-4 space-y-4">
             {messages.map((message) => (
               <div
                 key={message.id}
@@ -310,7 +312,6 @@ export function AIChatbot() {
                 </div>
               </div>
             )}
-            <div ref={messagesEndRef} />
           </div>
 
           {/* Quick Questions */}

@@ -46,9 +46,14 @@ export function ChatSystem() {
   const [searchQuery, setSearchQuery] = useState('');
   const [messageInput, setMessageInput] = useState('');
   const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const isNearBottom = useRef(true);
+
+  const scrollMessagesToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    container.scrollTo({ top: container.scrollHeight, behavior });
+  };
 
   const {
     chats,
@@ -109,7 +114,7 @@ export function ChatSystem() {
   // Only auto-scroll when user is already near the bottom
   useEffect(() => {
     if (isNearBottom.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      scrollMessagesToBottom('smooth');
     }
   }, [messages]);
 
@@ -179,7 +184,7 @@ export function ChatSystem() {
 
     setMessageInput('');
     isNearBottom.current = true;
-    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+    setTimeout(() => scrollMessagesToBottom('smooth'), 50);
     setTimeout(() => {
       setTyping(currentChat.id, true);
       setTimeout(() => setTyping(currentChat.id, false), 1200);
@@ -512,8 +517,6 @@ export function ChatSystem() {
                 {isTyping && currentChat.canChat && (
                   <div className="mt-4 text-sm text-stone-400">{otherParticipant.name} is typing...</div>
                 )}
-
-                <div ref={messagesEndRef} />
               </div>
 
               <div className="border-t border-stone-100 px-5 py-4">
